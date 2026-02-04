@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: watchwish_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: watchwish
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - watchwish_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/watchwish --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Web Application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: watchwish_web
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app/backend
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-dev-key-change-in-production
+      - MONGO_DB_NAME=watchwish
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - watchwish_network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  watchwish_network:
+    driver: bridge
