@@ -68,3 +68,43 @@ class MovieService:
         collection = get_movies_collection()
         query = filters or {}
         return collection.count_documents(query)
+    
+    @staticmethod
+    def get_movie_by_title(title):
+        collection = get_movies_collection()
+        movie = collection.find_one({'title': {'$regex': f'^{title}', '$options': 'i'}})
+        if movie:
+            movie['_id'] = str(movie['_id'])
+        return movie
+    
+    @staticmethod
+    def get_recommendations(movie_title, limit=5):
+        collection = get_movies_collection()
+        
+        source_movie = collection.find_one({'title': {'$regex': f'^{movie_title}', '$options': 'i'}})
+        if not source_movie:
+            return []
+        
+        source_genres = set(source_movie['genres'].split('|'))
+        
+        all_movies = list(collection.find({'movieId': {'$ne': source_movie['movieId']}}))
+        
+        movie_scores = []
+        for movie in all_movies:
+            movie_genres = set(movie['genres'].split('|'))
+            genre_overlap = len(source_genres & movie_genres)
+            if genre_overlap > 0:
+                movie_scores.append({
+                    'movie': movie,
+                    'score': genre_overlap
+                })
+        
+        movie_scores.sort(key=lambda x: x['score'], reverse=True)
+        
+        recommendations = []
+        for item in movie_scores[:limit]:
+            movie = item['movie']
+            movie['_id'] = str(movie['_id'])
+            recommendations.append(movie)
+        
+        return recommendations

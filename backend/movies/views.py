@@ -5,6 +5,29 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from .services import MovieService
 
+def index(request):
+    movie_title = request.GET.get('movie', '').strip()
+    recommendations = []
+    searched_movie = None
+    error = None
+    
+    if movie_title:
+        searched_movie = MovieService.get_movie_by_title(movie_title)
+        if searched_movie:
+            searched_movie['genre_list'] = searched_movie['genres'].split('|')
+            recommendations = MovieService.get_recommendations(movie_title, limit=5)
+            for rec in recommendations:
+                rec['genre_list'] = rec['genres'].split('|')
+        else:
+            error = f"Movie '{movie_title}' not found in our database."
+    
+    return render(request, 'index.html', {
+        'movie_title': movie_title,
+        'searched_movie': searched_movie,
+        'recommendations': recommendations,
+        'error': error
+    })
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def create_movie(request):
