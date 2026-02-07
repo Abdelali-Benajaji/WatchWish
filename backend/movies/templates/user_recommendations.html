@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie Recommendations - WatchWish</title>
+    <title>User Recommendations - WatchWish</title>
     <style>
         * {
             margin: 0;
@@ -113,7 +113,7 @@
             border-left: 4px solid #c33;
         }
         
-        .searched-movie {
+        .user-info {
             background: white;
             padding: 20px;
             border-radius: 10px;
@@ -121,7 +121,7 @@
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         
-        .searched-movie h3 {
+        .user-info h3 {
             color: #333;
             margin-bottom: 10px;
         }
@@ -135,6 +135,17 @@
             font-size: 0.85em;
             margin-right: 5px;
             margin-top: 5px;
+        }
+        
+        .score-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+            font-weight: bold;
         }
         
         .results {
@@ -199,7 +210,7 @@
     <div class="container">
         <div class="header">
             <h1>🎬 WatchWish</h1>
-            <p>Discover your next favorite movie</p>
+            <p>Get personalized movie recommendations for any user</p>
         </div>
         
         <div class="nav-links">
@@ -210,14 +221,15 @@
         <div class="search-box">
             <form method="get" class="search-form">
                 <input 
-                    type="text" 
-                    name="movie" 
+                    type="number" 
+                    name="user_id" 
                     class="search-input" 
-                    placeholder="Enter a movie title..." 
-                    value="{{ movie_title }}"
+                    placeholder="Enter user ID (e.g., 1, 2, 3...)" 
+                    value="{{ user_id }}"
                     required
+                    min="1"
                 >
-                <button type="submit" class="search-button">Find Similar</button>
+                <button type="submit" class="search-button">Get Recommendations</button>
             </form>
         </div>
         
@@ -227,25 +239,23 @@
         </div>
         {% endif %}
         
-        {% if searched_movie %}
-        <div class="searched-movie">
-            <h3>You searched for:</h3>
-            <h2>{{ searched_movie.title }}</h2>
-            <div>
-                {% for genre in searched_movie.genre_list %}
-                    <span class="genre-tag">{{ genre }}</span>
-                {% endfor %}
-            </div>
+        {% if user_id and recommendations %}
+        <div class="user-info">
+            <h3>Showing recommendations for:</h3>
+            <h2>User ID: {{ user_id }}</h2>
         </div>
         {% endif %}
         
         {% if recommendations %}
         <div class="results">
-            <h2>Recommended Movies</h2>
+            <h2>Top 10 Recommended Movies</h2>
             <ul class="movie-list">
                 {% for movie in recommendations %}
                 <li class="movie-item">
-                    <h3>{{ movie.title }}</h3>
+                    <h3>
+                        {{ movie.title }}
+                        <span class="score-badge">Score: {{ movie.recommendation_score|floatformat:2 }}</span>
+                    </h3>
                     <div>
                         {% for genre in movie.genre_list %}
                             <span class="genre-tag">{{ genre }}</span>
@@ -255,10 +265,10 @@
                 {% endfor %}
             </ul>
         </div>
-        {% elif movie_title and not error %}
+        {% elif user_id and not error %}
         <div class="results">
             <div class="no-results">
-                No recommendations found. Try searching for a different movie.
+                No recommendations found for this user. Try a different user ID.
             </div>
         </div>
         {% else %}
@@ -266,11 +276,14 @@
         <div class="results">
             <div class="empty-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
-                    <polyline points="17 2 12 7 7 2"></polyline>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
                 </svg>
-                <h3>Start by searching for a movie</h3>
-                <p>Type a movie title above to get personalized recommendations</p>
+                <h3>Start by entering a user ID</h3>
+                <p>Type a user ID above to get personalized movie recommendations</p>
+                <p style="margin-top: 10px; font-size: 0.9em; color: #999;">
+                    (Try IDs like 1, 2, 3, etc.)
+                </p>
             </div>
         </div>
         {% endif %}

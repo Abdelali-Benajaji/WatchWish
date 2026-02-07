@@ -22,4 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('movies.urls')),
     path('', views.index, name='index'),
+    path('user-recommendations/', views.user_recommendations, name='user_recommendations'),
 ]

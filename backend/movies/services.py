@@ -1,5 +1,8 @@
 from bson import ObjectId
 from .db import get_movies_collection
+import json
+import os
+from django.conf import settings
 
 class MovieService:
     @staticmethod
@@ -108,3 +111,62 @@ class MovieService:
             recommendations.append(movie)
         
         return recommendations
+    
+    @staticmethod
+    def get_user_recommendations(user_id, limit=10):
+        base_path = os.path.join(settings.BASE_DIR.parent, 'data')
+        model1_path = os.path.join(base_path, 'model_movies_rec.json')
+        model2_path = os.path.join(base_path, 'model_movies_rec2.json')
+        
+        recommendations_map = {}
+        
+        try:
+            with open(model1_path, 'r') as f:
+                for line in f:
+                    data = json.loads(line.strip())
+                    if data['userId'] == user_id:
+                        for rec in data['recommendations']:
+                            movie_id = rec['movieId']
+                            if movie_id not in recommendations_map:
+                                recommendations_map[movie_id] = {'movieId': movie_id, 'score': 0, 'count': 0}
+                            recommendations_map[movie_id]['score'] += rec['score']
+                            recommendations_map[movie_id]['count'] += 1
+                        break
+        except FileNotFoundError:
+            pass
+        
+        try:
+            with open(model2_path, 'r') as f:
+                for line in f:
+                    data = json.loads(line.strip())
+                    if data['userId'] == user_id:
+                        for rec in data['recommendations']:
+                            movie_id = rec['movieId']
+                            if movie_id not in recommendations_map:
+                                recommendations_map[movie_id] = {'movieId': movie_id, 'score': 0, 'count': 0}
+                            recommendations_map[movie_id]['score'] += rec['score']
+                            recommendations_map[movie_id]['count'] += 1
+                        break
+        except FileNotFoundError:
+            pass
+        
+        if not recommendations_map:
+            return []
+        
+        sorted_recommendations = sorted(
+            recommendations_map.values(),
+            key=lambda x: x['score'],
+            reverse=True
+        )[:limit]
+        
+        collection = get_movies_collection()
+        result_movies = []
+        
+        for rec in sorted_recommendations:
+            movie = collection.find_one({'movieId': rec['movieId']})
+            if movie:
+                movie['_id'] = str(movie['_id'])
+                movie['recommendation_score'] = rec['score']
+                result_movies.append(movie)
+        
+        return result_movies

@@ -89,3 +89,28 @@ def delete_movie(request, movie_id):
         return JsonResponse({'error': 'Movie not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+def user_recommendations(request):
+    user_id = request.GET.get('user_id', '').strip()
+    recommendations = []
+    error = None
+    
+    if user_id:
+        try:
+            user_id_int = int(user_id)
+            recommendations = MovieService.get_user_recommendations(user_id_int, limit=10)
+            if not recommendations:
+                error = f"No recommendations found for user ID {user_id_int}."
+            else:
+                for rec in recommendations:
+                    rec['genre_list'] = rec['genres'].split('|')
+        except ValueError:
+            error = "Please enter a valid user ID (numeric value)."
+        except Exception as e:
+            error = f"An error occurred: {str(e)}"
+    
+    return render(request, 'user_recommendations.html', {
+        'user_id': user_id,
+        'recommendations': recommendations,
+        'error': error
+    })
