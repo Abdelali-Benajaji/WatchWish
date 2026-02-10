@@ -32,3 +32,11 @@ def get_mongodb():
 def get_movies_collection():
     db = get_mongodb()
     return db['movies']
+
+def get_user_recommendations_collection():
+    db = get_mongodb()
+    return db['user_recommendations']
+
+def get_user_ratings_collection():
+    db = get_mongodb()
+    return db['user_ratings']

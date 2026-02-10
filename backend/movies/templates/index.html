@@ -1,280 +1,136 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie Recommendations - WatchWish</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-        
-        .header h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-        
-        .nav-links {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .nav-link {
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            display: inline-block;
-            margin: 0 5px;
-            transition: background 0.3s;
-        }
-        
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-        
-        .search-box {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-        }
-        
-        .search-form {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .search-input {
-            flex: 1;
-            padding: 15px 20px;
-            font-size: 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-        
-        .search-input:focus {
-            border-color: #667eea;
-        }
-        
-        .search-button {
-            padding: 15px 40px;
-            font-size: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-        
-        .search-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .error {
-            background: #fee;
-            color: #c33;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #c33;
-        }
-        
-        .searched-movie {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .searched-movie h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        
-        .genre-tag {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.85em;
-            margin-right: 5px;
-            margin-top: 5px;
-        }
-        
-        .results {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        
-        .results h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.8em;
-        }
-        
-        .movie-list {
-            list-style: none;
-        }
-        
-        .movie-item {
-            padding: 20px;
-            margin-bottom: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            border-left: 4px solid #667eea;
-        }
-        
-        .movie-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .movie-item h3 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 1.2em;
-        }
-        
-        .no-results {
-            text-align: center;
-            color: #666;
-            font-size: 1.1em;
-            padding: 40px;
-        }
-        
-        .empty-state {
-            text-align: center;
-            color: #666;
-            padding: 60px 20px;
-        }
-        
-        .empty-state svg {
-            width: 100px;
-            height: 100px;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🎬 WatchWish</h1>
-            <p>Discover your next favorite movie</p>
+{% extends 'base.html' %}
+
+{% block title %}Find Movies - WatchWish{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Discover Movies</h1>
+    <p>Find similar movies based on what you love.</p>
+</section>
+
+<div class="search-container">
+    <form method="get" class="search-form">
+        {% csrf_token %}
+        <input type="text" name="movie" class="search-input"
+            placeholder="Enter a movie title (e.g., Unbeatable, Broken)..." value="{{ movie_title }}" required
+            autocomplete="off">
+        <button type="submit" class="search-button">
+            Search
+        </button>
+    </form>
+</div>
+
+{% if error %}
+<div class="empty-state">
+    <div class="empty-icon">❌</div>
+    <h3>{{ error }}</h3>
+    <p>Try searching for a different movie.</p>
+</div>
+{% endif %}
+
+{% if searched_movie %}
+<div class="result-section">
+    <h2>Found Movie</h2>
+    <div class="movie-card result-card" style="max-width: 600px; margin: 0 auto;">
+        <div class="card-image-container">
+            {% if searched_movie.poster_url %}
+            <img src="{{ searched_movie.poster_url }}" alt="{{ searched_movie.title }}" class="card-image"
+                loading="lazy">
+            {% else %}
+            <div
+                style="width:100%; height:100%; background: #333; display: flex; align-items: center; justify-content: center; color: #666;">
+                No Poster
+            </div>
+            {% endif %}
         </div>
-        
-        <div class="nav-links">
-            <a href="/" class="nav-link">Movie Search</a>
-            <a href="/user-recommendations/" class="nav-link">User Recommendations</a>
-        </div>
-        
-        <div class="search-box">
-            <form method="get" class="search-form">
-                <input 
-                    type="text" 
-                    name="movie" 
-                    class="search-input" 
-                    placeholder="Enter a movie title..." 
-                    value="{{ movie_title }}"
-                    required
-                >
-                <button type="submit" class="search-button">Find Similar</button>
-            </form>
-        </div>
-        
-        {% if error %}
-        <div class="error">
-            {{ error }}
-        </div>
-        {% endif %}
-        
-        {% if searched_movie %}
-        <div class="searched-movie">
-            <h3>You searched for:</h3>
-            <h2>{{ searched_movie.title }}</h2>
-            <div>
+        <div class="card-content">
+            <h3 class="card-title">{{ searched_movie.title }}</h3>
+            <div class="card-meta">
                 {% for genre in searched_movie.genre_list %}
-                    <span class="genre-tag">{{ genre }}</span>
+                <span class="genre-tag">{{ genre }}</span>
                 {% endfor %}
             </div>
-        </div>
-        {% endif %}
-        
-        {% if recommendations %}
-        <div class="results">
-            <h2>Recommended Movies</h2>
-            <ul class="movie-list">
-                {% for movie in recommendations %}
-                <li class="movie-item">
-                    <h3>{{ movie.title }}</h3>
-                    <div>
-                        {% for genre in movie.genre_list %}
-                            <span class="genre-tag">{{ genre }}</span>
-                        {% endfor %}
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% elif movie_title and not error %}
-        <div class="results">
-            <div class="no-results">
-                No recommendations found. Try searching for a different movie.
+
+            <div class="star-rating" style="flex-direction: row-reverse; justify-content: flex-end;">
+                <span class="star" onclick="rateMovie('{{ searched_movie.movieId }}', 5)" title="5 stars">★</span>
+                <span class="star" onclick="rateMovie('{{ searched_movie.movieId }}', 4)" title="4 stars">★</span>
+                <span class="star" onclick="rateMovie('{{ searched_movie.movieId }}', 3)" title="3 stars">★</span>
+                <span class="star" onclick="rateMovie('{{ searched_movie.movieId }}', 2)" title="2 stars">★</span>
+                <span class="star" onclick="rateMovie('{{ searched_movie.movieId }}', 1)" title="1 star">★</span>
             </div>
+
+            {% if searched_movie.description %}
+            <p class="description">{{ searched_movie.description }}</p>
+            {% endif %}
         </div>
-        {% else %}
-        {% if not error %}
-        <div class="results">
-            <div class="empty-state">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
-                    <polyline points="17 2 12 7 7 2"></polyline>
-                </svg>
-                <h3>Start by searching for a movie</h3>
-                <p>Type a movie title above to get personalized recommendations</p>
-            </div>
-        </div>
-        {% endif %}
-        {% endif %}
     </div>
-</body>
-</html>
+</div>
+{% endif %}
+
+{% if recommendations %}
+<div class="recommendations-section">
+    <h2>
+        {% if searched_movie %}
+        Similar Movies & Recommendations
+        {% else %}
+        Explore Popular Movies
+        {% endif %}
+    </h2>
+    <div class="movies-grid">
+        {% for movie in recommendations %}
+        <div class="movie-card">
+            <div class="card-image-container">
+                {% if movie.poster_url %}
+                <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="card-image" loading="lazy">
+                {% else %}
+                <div
+                    style="width:100%; height:100%; background: #333; display: flex; align-items: center; justify-content: center; color: #666;">
+                    No Poster
+                </div>
+                {% endif %}
+
+                {% if movie.score %}
+                <div class="score-badge">
+                    {{ movie.score }} Matches
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-content">
+                <h3 class="card-title" title="{{ movie.title }}">{{ movie.title }}</h3>
+                <div class="card-meta">
+                    {% for genre in movie.genre_list %}
+                    <span class="genre-tag">{{ genre }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="star-rating" style="flex-direction: row-reverse; justify-content: flex-end;">
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 5)" title="5 stars">★</span>
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 4)" title="4 stars">★</span>
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 3)" title="3 stars">★</span>
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 2)" title="2 stars">★</span>
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 1)" title="1 star">★</span>
+                </div>
+
+                {% if movie.description %}
+                <p class="description">{{ movie.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <h3>No recommendations found</h3>
+    <p>We couldn't find any similar movies. Try searching for something else.</p>
+</div>
+{% else %}
+{% if not error %}
+<div class="empty-state">
+    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+    </svg>
+    <h3>Start your search</h3>
+    <p>Type a movie title above to get started.</p>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

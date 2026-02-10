@@ -20,6 +20,8 @@ from movies import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('django.contrib.auth.urls')),
+    path('accounts/signup/', views.signup, name='signup'),
     path('api/', include('movies.urls')),
     path('', views.index, name='index'),
     path('user-recommendations/', views.user_recommendations, name='user_recommendations'),

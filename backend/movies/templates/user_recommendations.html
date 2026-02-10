@@ -1,293 +1,88 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Recommendations - WatchWish</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-        
-        .header h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-        
-        .nav-links {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        
-        .nav-link {
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            display: inline-block;
-            margin: 0 5px;
-            transition: background 0.3s;
-        }
-        
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-        
-        .search-box {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-        }
-        
-        .search-form {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .search-input {
-            flex: 1;
-            padding: 15px 20px;
-            font-size: 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-        
-        .search-input:focus {
-            border-color: #667eea;
-        }
-        
-        .search-button {
-            padding: 15px 40px;
-            font-size: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-        
-        .search-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .error {
-            background: #fee;
-            color: #c33;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #c33;
-        }
-        
-        .user-info {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .user-info h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        
-        .genre-tag {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 0.85em;
-            margin-right: 5px;
-            margin-top: 5px;
-        }
-        
-        .score-badge {
-            display: inline-block;
-            background: #28a745;
-            color: white;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            margin-left: 10px;
-            font-weight: bold;
-        }
-        
-        .results {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        
-        .results h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.8em;
-        }
-        
-        .movie-list {
-            list-style: none;
-        }
-        
-        .movie-item {
-            padding: 20px;
-            margin-bottom: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            border-left: 4px solid #667eea;
-        }
-        
-        .movie-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .movie-item h3 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 1.2em;
-        }
-        
-        .no-results {
-            text-align: center;
-            color: #666;
-            font-size: 1.1em;
-            padding: 40px;
-        }
-        
-        .empty-state {
-            text-align: center;
-            color: #666;
-            padding: 60px 20px;
-        }
-        
-        .empty-state svg {
-            width: 100px;
-            height: 100px;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🎬 WatchWish</h1>
-            <p>Get personalized movie recommendations for any user</p>
-        </div>
-        
-        <div class="nav-links">
-            <a href="/" class="nav-link">Movie Search</a>
-            <a href="/user-recommendations/" class="nav-link">User Recommendations</a>
-        </div>
-        
-        <div class="search-box">
-            <form method="get" class="search-form">
-                <input 
-                    type="number" 
-                    name="user_id" 
-                    class="search-input" 
-                    placeholder="Enter user ID (e.g., 1, 2, 3...)" 
-                    value="{{ user_id }}"
-                    required
-                    min="1"
-                >
-                <button type="submit" class="search-button">Get Recommendations</button>
-            </form>
-        </div>
-        
-        {% if error %}
-        <div class="error">
-            {{ error }}
-        </div>
-        {% endif %}
-        
-        {% if user_id and recommendations %}
-        <div class="user-info">
-            <h3>Showing recommendations for:</h3>
-            <h2>User ID: {{ user_id }}</h2>
-        </div>
-        {% endif %}
-        
-        {% if recommendations %}
-        <div class="results">
-            <h2>Top 10 Recommended Movies</h2>
-            <ul class="movie-list">
-                {% for movie in recommendations %}
-                <li class="movie-item">
-                    <h3>
-                        {{ movie.title }}
-                        <span class="score-badge">Score: {{ movie.recommendation_score|floatformat:2 }}</span>
-                    </h3>
-                    <div>
-                        {% for genre in movie.genre_list %}
-                            <span class="genre-tag">{{ genre }}</span>
-                        {% endfor %}
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% elif user_id and not error %}
-        <div class="results">
-            <div class="no-results">
-                No recommendations found for this user. Try a different user ID.
-            </div>
-        </div>
-        {% else %}
-        {% if not error %}
-        <div class="results">
-            <div class="empty-state">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <h3>Start by entering a user ID</h3>
-                <p>Type a user ID above to get personalized movie recommendations</p>
-                <p style="margin-top: 10px; font-size: 0.9em; color: #999;">
-                    (Try IDs like 1, 2, 3, etc.)
-                </p>
-            </div>
-        </div>
-        {% endif %}
-        {% endif %}
+{% extends 'base.html' %}
+
+{% block title %}User Recommendations - WatchWish{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="header-content">
+        <h1>
+            Your Recommendations
+        </h1>
+        <p class="subtitle">Based on your ratings.</p>
     </div>
-</body>
-</html>
+
+    {# Search container removed as page is now login protected and uses current user #}
+</section>
+
+{% if error %}
+<div class="empty-state">
+    <h3>{{ error }}</h3>
+    {% if user.is_authenticated %}
+    <p>Start rating movies on the <a href="{% url 'index' %}" style="color: var(--primary-color);">Search page</a> to
+        get personalized recommendations!</p>
+    {% else %}
+    <p>Try entering a different User ID.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if user_id and recommendations %}
+<div class="mb-4" style="text-align: center; margin-bottom: 3rem;">
+    <h3>Top Picks for User #{{ user_id }}</h3>
+</div>
+{% endif %}
+
+{% if recommendations %}
+<div class="grid">
+    {% for movie in recommendations %}
+    <div class="card">
+        <div class="card-image-container">
+            {% if movie.poster_url %}
+            <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="card-image" loading="lazy">
+            {% else %}
+            <div
+                style="width:100%; height:100%; background: #333; display: flex; align-items: center; justify-content: center; color: #666;">
+                No Poster
+            </div>
+            {% endif %}
+
+            <div class="score-badge">
+                {{ movie.recommendation_score|floatformat:1 }} Score
+            </div>
+        </div>
+        <div class="card-content">
+            <h3 class="card-title" title="{{ movie.title }}">{{ movie.title }}</h3>
+            <div class="card-meta">
+                {% for genre in movie.genre_list %}
+                <span class="genre-tag">{{ genre }}</span>
+                {% endfor %}
+            </div>
+            {% if movie.description %}
+            <p class="description">{{ movie.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% elif user_id and not error %}
+<div class="empty-state">
+    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <h3>Your recommendations are not ready</h3>
+    <p>We don't have enough data yet. Rate more movies in the Search page to get live recommendations!</p>
+</div>
+{% else %}
+{% if not error %}
+<div class="empty-state">
+    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+    </svg>
+    <h3>View User Profile</h3>
+    <p>Enter a User ID (e.g., 1, 2, 3) to see their personalized recommendations.</p>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

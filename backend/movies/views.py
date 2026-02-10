@@ -20,7 +20,17 @@ def index(request):
                 rec['genre_list'] = rec['genres'].split('|')
         else:
             error = f"Movie '{movie_title}' not found in our database."
-    
+    else:
+        # Show some random popular movies for discovery
+        # passing empty filters to get_all_movies gives first 100. 
+        # let's pick 12 random ones from first 100 to show diversity
+        import random
+        all_movies = MovieService.get_all_movies(limit=100)
+        if all_movies:
+            recommendations = random.sample(all_movies, min(len(all_movies), 12))
+            for rec in recommendations:
+                 rec['genre_list'] = rec['genres'].split('|')
+
     return render(request, 'index.html', {
         'movie_title': movie_title,
         'searched_movie': searched_movie,
@@ -90,17 +100,29 @@ def delete_movie(request, movie_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
 
+from django.contrib.auth.decorators import login_required
+
+@login_required
 def user_recommendations(request):
     user_id = request.GET.get('user_id', '').strip()
     recommendations = []
     error = None
+    
+    # automated user id selection
+    if not user_id:
+        # User ID Offset to avoid conflict with dataset user IDs
+        # Dataset max ID is around 610 (for small MovieLens) or higher. 
+        # Detailed check showed 999999 (from our test script, likely our test user).
+        # Let's use 1,000,000 as base. 
+        # So Django User ID 1 becomes 1,000,001
+        user_id = str(request.user.id + 1000000)
     
     if user_id:
         try:
             user_id_int = int(user_id)
             recommendations = MovieService.get_user_recommendations(user_id_int, limit=10)
             if not recommendations:
-                error = f"No recommendations found for user ID {user_id_int}."
+                error = f"No recommendations found yet. Rate some movies to get started!"
             else:
                 for rec in recommendations:
                     rec['genre_list'] = rec['genres'].split('|')
@@ -114,3 +136,48 @@ def user_recommendations(request):
         'recommendations': recommendations,
         'error': error
     })
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def rate_movie(request):
+    if not request.user.is_authenticated:
+         return JsonResponse({'error': 'Authentication required'}, status=401)
+         
+    try:
+        data = json.loads(request.body)
+        movie_id = data.get('movie_id')
+        score = data.get('score')
+        
+        if not movie_id or score is None:
+            return JsonResponse({'error': 'Missing movie_id or score'}, status=400)
+            
+        # simple 1-5 scale.
+        if float(score) < 1 or float(score) > 5:
+             return JsonResponse({'error': 'Score must be between 1 and 5'}, status=400)
+             
+        # User ID Offset logic for consistency with user_recommendations
+        # Django User ID 1 -> Rating User ID 1000001
+        user_id = request.user.id + 1000000
+        
+        MovieService.add_user_rating(user_id, movie_id, float(score))
+        
+        return JsonResponse({'status': 'success'})
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
+from django.shortcuts import redirect
+
+def signup(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('index')
+    else:
+        form = UserCreationForm()
+    return render(request, 'registration/signup.html', {'form': form})
