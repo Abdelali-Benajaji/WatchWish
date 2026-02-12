@@ -31,7 +31,7 @@
 {% if searched_movie %}
 <div class="result-section">
     <h2>Found Movie</h2>
-    <div class="movie-card result-card" style="max-width: 600px; margin: 0 auto;">
+    <div class="movie-card result-card">
         <div class="card-image-container">
             {% if searched_movie.poster_url %}
             <img src="{{ searched_movie.poster_url }}" alt="{{ searched_movie.title }}" class="card-image"
@@ -62,6 +62,10 @@
             {% if searched_movie.description %}
             <p class="description">{{ searched_movie.description }}</p>
             {% endif %}
+            
+            <a href="{% url 'movie_detail' searched_movie.movieId %}" class="back-button" style="margin-top: 1rem; text-align: center; display: inline-block;">
+                View Details
+            </a>
         </div>
     </div>
 </div>
@@ -71,14 +75,14 @@
 <div class="recommendations-section">
     <h2>
         {% if searched_movie %}
-        Similar Movies & Recommendations
+        Similar Movies You Might Like
         {% else %}
         Explore Popular Movies
         {% endif %}
     </h2>
     <div class="movies-grid">
         {% for movie in recommendations %}
-        <div class="movie-card">
+        <div class="movie-card" onclick="window.location.href='{% url 'movie_detail' movie.movieId %}'">
             <div class="card-image-container">
                 {% if movie.poster_url %}
                 <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="card-image" loading="lazy">
@@ -91,7 +95,7 @@
 
                 {% if movie.score %}
                 <div class="score-badge">
-                    {{ movie.score }} Matches
+                    {{ movie.score }} Match{{ movie.score|pluralize:"es" }}
                 </div>
                 {% endif %}
             </div>
@@ -103,7 +107,7 @@
                     {% endfor %}
                 </div>
 
-                <div class="star-rating" style="flex-direction: row-reverse; justify-content: flex-end;">
+                <div class="star-rating" style="flex-direction: row-reverse; justify-content: flex-end;" onclick="event.stopPropagation();">
                     <span class="star" onclick="rateMovie('{{ movie.movieId }}', 5)" title="5 stars">★</span>
                     <span class="star" onclick="rateMovie('{{ movie.movieId }}', 4)" title="4 stars">★</span>
                     <span class="star" onclick="rateMovie('{{ movie.movieId }}', 3)" title="3 stars">★</span>
@@ -118,8 +122,6 @@
         </div>
         {% endfor %}
     </div>
-    <h3>No recommendations found</h3>
-    <p>We couldn't find any similar movies. Try searching for something else.</p>
 </div>
 {% else %}
 {% if not error %}

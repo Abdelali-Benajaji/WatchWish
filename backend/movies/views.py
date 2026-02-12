@@ -15,19 +15,16 @@ def index(request):
         searched_movie = MovieService.get_movie_by_title(movie_title)
         if searched_movie:
             searched_movie['genre_list'] = searched_movie['genres'].split('|')
-            recommendations = MovieService.get_recommendations(movie_title, limit=5)
+            recommendations = MovieService.get_recommendations(movie_title, limit=12)
             for rec in recommendations:
                 rec['genre_list'] = rec['genres'].split('|')
         else:
             error = f"Movie '{movie_title}' not found in our database."
     else:
-        # Show some random popular movies for discovery
-        # passing empty filters to get_all_movies gives first 100. 
-        # let's pick 12 random ones from first 100 to show diversity
         import random
-        all_movies = MovieService.get_all_movies(limit=100)
+        all_movies = MovieService.get_all_movies(limit=200)
         if all_movies:
-            recommendations = random.sample(all_movies, min(len(all_movies), 12))
+            recommendations = random.sample(all_movies, min(len(all_movies), 20))
             for rec in recommendations:
                  rec['genre_list'] = rec['genres'].split('|')
 
@@ -181,3 +178,26 @@ def signup(request):
     else:
         form = UserCreationForm()
     return render(request, 'registration/signup.html', {'form': form})
+
+def movie_detail(request, movie_id):
+    movie = MovieService.get_movie(movie_id)
+    
+    if not movie:
+        return render(request, 'index.html', {
+            'error': f"Movie not found.",
+            'movie_title': '',
+            'searched_movie': None,
+            'recommendations': []
+        })
+    
+    movie['genre_list'] = movie['genres'].split('|')
+    
+    movie_title = movie.get('title', '')
+    recommendations = MovieService.get_recommendations(movie_title, limit=12)
+    for rec in recommendations:
+        rec['genre_list'] = rec['genres'].split('|')
+    
+    return render(request, 'movie_detail.html', {
+        'movie': movie,
+        'recommendations': recommendations
+    })

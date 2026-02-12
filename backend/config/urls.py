@@ -23,6 +23,8 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('accounts/signup/', views.signup, name='signup'),
     path('api/', include('movies.urls')),
+    path('api/movies/rate/', views.rate_movie, name='rate_movie'),
     path('', views.index, name='index'),
     path('user-recommendations/', views.user_recommendations, name='user_recommendations'),
+    path('movie/<str:movie_id>/', views.movie_detail, name='movie_detail'),
 ]

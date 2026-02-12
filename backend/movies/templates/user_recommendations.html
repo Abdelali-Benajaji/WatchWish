@@ -10,8 +10,6 @@
         </h1>
         <p class="subtitle">Based on your ratings.</p>
     </div>
-
-    {# Search container removed as page is now login protected and uses current user #}
 </section>
 
 {% if error %}
@@ -28,14 +26,14 @@
 
 {% if user_id and recommendations %}
 <div class="mb-4" style="text-align: center; margin-bottom: 3rem;">
-    <h3>Top Picks for User #{{ user_id }}</h3>
+    <h3 style="font-size: 1.5rem; color: var(--text-secondary);">Top Picks for User #{{ user_id }}</h3>
 </div>
 {% endif %}
 
 {% if recommendations %}
-<div class="grid">
+<div class="movies-grid">
     {% for movie in recommendations %}
-    <div class="card">
+    <div class="movie-card" onclick="window.location.href='{% url 'movie_detail' movie.movieId %}'">
         <div class="card-image-container">
             {% if movie.poster_url %}
             <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="card-image" loading="lazy">
@@ -57,6 +55,15 @@
                 <span class="genre-tag">{{ genre }}</span>
                 {% endfor %}
             </div>
+            
+            <div class="star-rating" style="flex-direction: row-reverse; justify-content: flex-end;" onclick="event.stopPropagation();">
+                <span class="star" onclick="rateMovie('{{ movie.movieId }}', 5)" title="5 stars">★</span>
+                <span class="star" onclick="rateMovie('{{ movie.movieId }}', 4)" title="4 stars">★</span>
+                <span class="star" onclick="rateMovie('{{ movie.movieId }}', 3)" title="3 stars">★</span>
+                <span class="star" onclick="rateMovie('{{ movie.movieId }}', 2)" title="2 stars">★</span>
+                <span class="star" onclick="rateMovie('{{ movie.movieId }}', 1)" title="1 star">★</span>
+            </div>
+            
             {% if movie.description %}
             <p class="description">{{ movie.description }}</p>
             {% endif %}
@@ -80,8 +87,8 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
     </svg>
-    <h3>View User Profile</h3>
-    <p>Enter a User ID (e.g., 1, 2, 3) to see their personalized recommendations.</p>
+    <h3>View Your Recommendations</h3>
+    <p>Rate some movies to get personalized recommendations tailored just for you.</p>
 </div>
 {% endif %}
 {% endif %}

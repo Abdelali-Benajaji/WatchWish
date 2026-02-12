@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ movie.title }} - WatchWish{% endblock %}
+
+{% block content %}
+<div class="movie-detail-container">
+    <div class="movie-detail-hero">
+        {% if movie.poster_url %}
+        <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="detail-backdrop">
+        {% endif %}
+    </div>
+    
+    <div class="movie-detail-content">
+        <div class="detail-poster-container">
+            {% if movie.poster_url %}
+            <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" class="detail-poster">
+            {% else %}
+            <div style="width:100%; height:450px; background: #333; display: flex; align-items: center; justify-content: center; color: #666; border-radius: 1rem;">
+                No Poster
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="detail-info">
+            <h1 class="detail-title">{{ movie.title }}</h1>
+            
+            <div class="detail-genres">
+                {% for genre in movie.genre_list %}
+                <span class="detail-genre-tag">{{ genre }}</span>
+                {% endfor %}
+            </div>
+            
+            <div class="detail-rating-section">
+                <h3>Rate This Movie</h3>
+                <div class="star-rating" style="flex-direction: row-reverse; justify-content: flex-end;">
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 5)" title="5 stars">★</span>
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 4)" title="4 stars">★</span>
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 3)" title="3 stars">★</span>
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 2)" title="2 stars">★</span>
+                    <span class="star" onclick="rateMovie('{{ movie.movieId }}', 1)" title="1 star">★</span>
+                </div>
+            </div>
+            
+            {% if movie.description %}
+            <div class="detail-description">
+                {{ movie.description }}
+            </div>
+            {% endif %}
+            
+            <button onclick="window.history.back()" class="back-button">
+                ← Back to Search
+            </button>
+        </div>
+    </div>
+    
+    {% if recommendations %}
+    <div class="detail-recommendations-section">
+        <h2>Similar Movies</h2>
+        <div class="movies-grid">
+            {% for rec_movie in recommendations %}
+            <div class="movie-card" onclick="window.location.href='{% url 'movie_detail' rec_movie.movieId %}'">
+                <div class="card-image-container">
+                    {% if rec_movie.poster_url %}
+                    <img src="{{ rec_movie.poster_url }}" alt="{{ rec_movie.title }}" class="card-image" loading="lazy">
+                    {% else %}
+                    <div style="width:100%; height:100%; background: #333; display: flex; align-items: center; justify-content: center; color: #666;">
+                        No Poster
+                    </div>
+                    {% endif %}
+                    
+                    {% if rec_movie.score %}
+                    <div class="score-badge">
+                        {{ rec_movie.score }} Match{{ rec_movie.score|pluralize:"es" }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title" title="{{ rec_movie.title }}">{{ rec_movie.title }}</h3>
+                    <div class="card-meta">
+                        {% for genre in rec_movie.genre_list %}
+                        <span class="genre-tag">{{ genre }}</span>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="star-rating" style="flex-direction: row-reverse; justify-content: flex-end;" onclick="event.stopPropagation();">
+                        <span class="star" onclick="rateMovie('{{ rec_movie.movieId }}', 5)" title="5 stars">★</span>
+                        <span class="star" onclick="rateMovie('{{ rec_movie.movieId }}', 4)" title="4 stars">★</span>
+                        <span class="star" onclick="rateMovie('{{ rec_movie.movieId }}', 3)" title="3 stars">★</span>
+                        <span class="star" onclick="rateMovie('{{ rec_movie.movieId }}', 2)" title="2 stars">★</span>
+                        <span class="star" onclick="rateMovie('{{ rec_movie.movieId }}', 1)" title="1 star">★</span>
+                    </div>
+                    
+                    {% if rec_movie.description %}
+                    <p class="description">{{ rec_movie.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

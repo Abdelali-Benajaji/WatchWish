@@ -14,7 +14,24 @@ class MovieService:
     @staticmethod
     def get_movie(movie_id):
         collection = get_movies_collection()
-        movie = collection.find_one({'_id': ObjectId(movie_id)})
+        movie = None
+
+        # If movie_id is a valid ObjectId string, try lookup by _id first
+        if ObjectId.is_valid(str(movie_id)):
+            try:
+                movie = collection.find_one({'_id': ObjectId(movie_id)})
+            except Exception:
+                movie = None
+
+        # If not found and movie_id looks numeric, try lookup by dataset movieId
+        if not movie:
+            try:
+                movie_id_int = int(movie_id)
+                movie = collection.find_one({'movieId': movie_id_int})
+            except (ValueError, TypeError):
+                # not an int, leave movie as None
+                movie = movie
+
         if movie:
             movie['_id'] = str(movie['_id'])
         return movie
@@ -31,16 +48,43 @@ class MovieService:
     @staticmethod
     def update_movie(movie_id, data):
         collection = get_movies_collection()
-        result = collection.update_one(
-            {'_id': ObjectId(movie_id)},
-            {'$set': data}
-        )
+        # Accept either MongoDB _id (ObjectId) or dataset movieId (int)
+        query = None
+        if ObjectId.is_valid(str(movie_id)):
+            try:
+                query = {'_id': ObjectId(movie_id)}
+            except Exception:
+                query = None
+
+        if query is None:
+            try:
+                movie_id_int = int(movie_id)
+                query = {'movieId': movie_id_int}
+            except (ValueError, TypeError):
+                query = {'_id': ObjectId(movie_id)}
+
+        result = collection.update_one(query, {'$set': data})
         return result.modified_count > 0
     
     @staticmethod
     def delete_movie(movie_id):
         collection = get_movies_collection()
-        result = collection.delete_one({'_id': ObjectId(movie_id)})
+        # Accept either MongoDB _id (ObjectId) or dataset movieId (int)
+        query = None
+        if ObjectId.is_valid(str(movie_id)):
+            try:
+                query = {'_id': ObjectId(movie_id)}
+            except Exception:
+                query = None
+
+        if query is None:
+            try:
+                movie_id_int = int(movie_id)
+                query = {'movieId': movie_id_int}
+            except (ValueError, TypeError):
+                query = {'_id': ObjectId(movie_id)}
+
+        result = collection.delete_one(query)
         return result.deleted_count > 0
     
     @staticmethod
