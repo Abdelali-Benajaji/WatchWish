@@ -192,12 +192,27 @@ def movie_detail(request, movie_id):
     
     movie['genre_list'] = movie['genres'].split('|')
     
-    movie_title = movie.get('title', '')
-    recommendations = MovieService.get_recommendations(movie_title, limit=12)
+    recommendations = MovieService.get_recommendations_by_movie_id(movie_id, limit=12)
     for rec in recommendations:
         rec['genre_list'] = rec['genres'].split('|')
     
+    imdb_url = None
+    tmdb_url = None
+    
+    if movie.get('imdbId'):
+        imdb_id = str(movie.get('imdbId')).zfill(7)
+        imdb_url = f"http://www.imdb.com/title/tt{imdb_id}/"
+    
+    if movie.get('tmdbId'):
+        try:
+            tmdb_id = str(int(float(movie.get('tmdbId'))))
+            tmdb_url = f"https://www.themoviedb.org/movie/{tmdb_id}"
+        except (ValueError, TypeError):
+            tmdb_url = None
+    
     return render(request, 'movie_detail.html', {
         'movie': movie,
-        'recommendations': recommendations
+        'recommendations': recommendations,
+        'imdb_url': imdb_url,
+        'tmdb_url': tmdb_url
     })

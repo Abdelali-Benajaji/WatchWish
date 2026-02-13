@@ -69,11 +69,10 @@ class Command(BaseCommand):
                 update_data = {
                     'description': row.get('description', ''),
                     'poster_url': row.get('poster_url', ''),
-                    'note_tmdb': row.get('note_tmdb', '') # Assuming this column exists based on plan, if not careful checks needed
+                    'note_tmdb': row.get('note_tmdb', ''),
+                    'imdbId': row.get('imdbId', ''),
+                    'tmdbId': row.get('tmdbId', '')
                 }
-                
-                # Check for tmdbId and imdbId to add if missing? 
-                # Just focus on description and poster_url as requested.
                 
                 result = collection.update_one(
                     {'movieId': movie_id_val},

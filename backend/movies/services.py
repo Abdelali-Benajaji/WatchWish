@@ -157,6 +157,38 @@ class MovieService:
         return recommendations
     
     @staticmethod
+    def get_recommendations_by_movie_id(movie_id, limit=5):
+        collection = get_movies_collection()
+        
+        source_movie = MovieService.get_movie(movie_id)
+        if not source_movie:
+            return []
+        
+        source_genres = set(source_movie['genres'].split('|'))
+        
+        all_movies = list(collection.find({'movieId': {'$ne': source_movie['movieId']}}))
+        
+        movie_scores = []
+        for movie in all_movies:
+            movie_genres = set(movie['genres'].split('|'))
+            genre_overlap = len(source_genres & movie_genres)
+            if genre_overlap > 0:
+                movie_scores.append({
+                    'movie': movie,
+                    'score': genre_overlap
+                })
+        
+        movie_scores.sort(key=lambda x: x['score'], reverse=True)
+        
+        recommendations = []
+        for item in movie_scores[:limit]:
+            movie = item['movie']
+            movie['_id'] = str(movie['_id'])
+            recommendations.append(movie)
+        
+        return recommendations
+    
+    @staticmethod
     def get_user_recommendations(user_id, limit=10):
         # Migrated to use MongoDB 'user_recommendations' collection
         # Assuming we prioritized model1, or merge them?

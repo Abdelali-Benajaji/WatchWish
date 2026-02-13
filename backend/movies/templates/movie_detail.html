@@ -30,6 +30,26 @@
                 {% endfor %}
             </div>
             
+            {% if imdb_url or tmdb_url %}
+            <div class="external-links">
+                <h3>More Information</h3>
+                <div class="links-container">
+                    {% if imdb_url %}
+                    <a href="{{ imdb_url }}" target="_blank" rel="noopener noreferrer" class="external-link imdb-link">
+                        <!-- <span class="link-icon">🎬</span> -->
+                        <span>View on IMDb</span>
+                    </a>
+                    {% endif %}
+                    {% if tmdb_url %}
+                    <a href="{{ tmdb_url }}" target="_blank" rel="noopener noreferrer" class="external-link tmdb-link">
+                        <!-- <span class="link-icon">🎥</span> -->
+                        <span>View on TMDb</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
             <div class="detail-rating-section">
                 <h3>Rate This Movie</h3>
                 <div class="star-rating" style="flex-direction: row-reverse; justify-content: flex-end;">
