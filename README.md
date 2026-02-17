@@ -81,6 +81,11 @@ Ensure MongoDB is running on `localhost:27017`
 ```bash
 python backend/manage.py load_movie_data
 ```
+###  Load Image Data
+
+```bash
+python backend/manage.py import_data
+```
 
 ### Step 5: Create Django Admin User (Optional)
 
