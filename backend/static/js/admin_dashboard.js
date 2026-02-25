@@ -542,6 +542,13 @@ async function loadGenreAudience(genre) {
             const totalCount = allStats.data.reduce((acc, s) => acc + s.count, 0);
             const share = Math.round((stats.count / totalCount) * 100);
             document.getElementById("genreMarketShare").textContent = share + "%";
+            
+            const insight = document.getElementById("genreInsight");
+            if (insight) {
+                const avgRevenue = stats.avg_revenue;
+                const roiClass = stats.avg_roi >= 3 ? "high" : stats.avg_roi >= 2 ? "medium" : "low";
+                insight.textContent = `${genre} films generate an average of $${avgRevenue}M in revenue with a ${stats.avg_roi}x ROI. This genre has ${stats.count} films in our database, representing ${share}% market share.`;
+            }
         }
     } catch (e) {
         console.error("Genre stats load failed:", e);
@@ -555,13 +562,45 @@ async function loadGenreAudience(genre) {
         console.error("Genre movies load failed:", e);
     }
 
-    const bars = document.querySelectorAll(".demo-fill");
-    bars.forEach(b => b.style.width = "0%");
-    setTimeout(() => {
-        bars[0].style.width = (70 + Math.random() * 20) + "%";
-        bars[1].style.width = (80 + Math.random() * 15) + "%";
-        bars[2].style.width = (40 + Math.random() * 30) + "%";
-    }, 500);
+    try {
+        const demoRes = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=demographics`);
+        const demoJson = await demoRes.json();
+        
+        if (demoJson.status === 'ok' && demoJson.data.by_age_group) {
+            const ageGroups = demoJson.data.by_age_group;
+            const total = Object.values(ageGroups).reduce((a, b) => a + b, 0);
+            
+            const bars = document.querySelectorAll(".demo-fill");
+            const ageGroupKeys = ['18-24', '25-34', '35-44'];
+            
+            bars.forEach((bar, i) => {
+                const key = ageGroupKeys[i];
+                const count = ageGroups[key] || 0;
+                const pct = total > 0 ? (count / total * 100) : 0;
+                bar.style.width = "0%";
+                setTimeout(() => {
+                    bar.style.width = Math.min(100, pct * 1.5) + "%";
+                }, 500 + (i * 100));
+            });
+        } else {
+            const bars = document.querySelectorAll(".demo-fill");
+            bars.forEach(b => b.style.width = "0%");
+            setTimeout(() => {
+                bars[0].style.width = (70 + Math.random() * 20) + "%";
+                bars[1].style.width = (80 + Math.random() * 15) + "%";
+                bars[2].style.width = (40 + Math.random() * 30) + "%";
+            }, 500);
+        }
+    } catch (e) {
+        console.error("Demographics load failed:", e);
+        const bars = document.querySelectorAll(".demo-fill");
+        bars.forEach(b => b.style.width = "0%");
+        setTimeout(() => {
+            bars[0].style.width = (70 + Math.random() * 20) + "%";
+            bars[1].style.width = (80 + Math.random() * 15) + "%";
+            bars[2].style.width = (40 + Math.random() * 30) + "%";
+        }, 500);
+    }
 }
 
 function renderVanguardTable(movies) {

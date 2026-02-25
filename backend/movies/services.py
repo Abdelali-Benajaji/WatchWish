@@ -2,6 +2,12 @@ from bson import ObjectId
 from .db import get_movies_collection
 import json
 import os
+import pandas as pd
+import numpy as np
+import pickle
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from django.conf import settings
 
 class MovieService:
@@ -348,3 +354,333 @@ class MovieService:
             result.append(movie)
             
         return result
+
+
+class MLMovieAnalyzer:
+    _tfidf_vectorizer = None
+    _tfidf_matrix = None
+    _movies_df = None
+    _initialized = False
+    
+    @classmethod
+    def initialize(cls):
+        if cls._initialized:
+            return True
+        
+        try:
+            base_dir = settings.BASE_DIR
+            if hasattr(base_dir, 'parent'):
+                base_dir = base_dir.parent
+            
+            csv_path = os.path.join(base_dir, 'data', 'dashboard_data', 'data_of_all_films.csv')
+            if not os.path.exists(csv_path):
+                print(f"CSV file not found at: {csv_path}")
+                return False
+            
+            print(f"Loading CSV from: {csv_path}")
+            cls._movies_df = pd.read_csv(csv_path)
+            print(f"Loaded {len(cls._movies_df)} movies")
+            
+            cls._movies_df['description'] = cls._movies_df['description'].fillna('')
+            cls._movies_df['title'] = cls._movies_df['title'].fillna('')
+            cls._movies_df['genres'] = cls._movies_df['genres'].fillna('')
+            
+            print("Creating metadata soup...")
+            cls._movies_df['metadata_soup'] = cls._movies_df.apply(
+                lambda row: cls._create_metadata_soup(row), axis=1
+            )
+            
+            print("Training TF-IDF vectorizer...")
+            cls._tfidf_vectorizer = TfidfVectorizer(
+                max_features=5000,
+                stop_words='english',
+                ngram_range=(1, 2),
+                min_df=2,
+                max_df=0.8
+            )
+            
+            cls._tfidf_matrix = cls._tfidf_vectorizer.fit_transform(cls._movies_df['metadata_soup'])
+            print(f"TF-IDF matrix shape: {cls._tfidf_matrix.shape}")
+            
+            cls._initialized = True
+            print("ML Analyzer initialized successfully!")
+            return True
+            
+        except Exception as e:
+            print(f"ML Analyzer initialization failed: {e}")
+            return False
+    
+    @staticmethod
+    def _create_metadata_soup(row):
+        description = str(row.get('description', ''))
+        title = str(row.get('title', ''))
+        genres = str(row.get('genres', ''))
+        
+        description = re.sub(r'[^\w\s]', ' ', description.lower())
+        title = re.sub(r'[^\w\s]', ' ', title.lower())
+        genres = genres.replace('|', ' ').lower()
+        
+        return f"{title} {title} {description} {genres} {genres}"
+    
+    @classmethod
+    def analyze_movie_concept(cls, concept_text, top_n=5):
+        if not cls._initialized:
+            if not cls.initialize():
+                return []
+        
+        try:
+            cleaned_concept = re.sub(r'[^\w\s]', ' ', concept_text.lower())
+            concept_vector = cls._tfidf_vectorizer.transform([cleaned_concept])
+            
+            similarities = cosine_similarity(concept_vector, cls._tfidf_matrix).flatten()
+            top_indices = similarities.argsort()[-top_n:][::-1]
+            
+            results = []
+            for idx in top_indices:
+                if similarities[idx] > 0.01:
+                    movie_data = cls._movies_df.iloc[idx]
+                    results.append({
+                        'movieId': int(movie_data['movieId']) if pd.notna(movie_data['movieId']) else 0,
+                        'title': str(movie_data['title']),
+                        'similarity': round(float(similarities[idx] * 100), 1),
+                        'genres': str(movie_data['genres']),
+                        'description': str(movie_data.get('description', '')),
+                        'poster': str(movie_data.get('poster_url', '')),
+                        'budget': int(movie_data['budget']) if pd.notna(movie_data.get('budget')) else 0,
+                        'revenue': int(movie_data['revenue']) if pd.notna(movie_data.get('revenue')) else 0,
+                        'vote_average': round(float(movie_data['vote_average']), 1) if pd.notna(movie_data.get('vote_average')) else 0,
+                        'release_date': str(movie_data.get('release_date', ''))
+                    })
+            
+            return results
+            
+        except Exception as e:
+            print(f"Concept analysis failed: {e}")
+            return []
+
+
+class DashboardAnalytics:
+    _users_df = None
+    _films_df = None
+    
+    @classmethod
+    def load_data(cls):
+        try:
+            base_dir = settings.BASE_DIR
+            if hasattr(base_dir, 'parent'):
+                base_dir = base_dir.parent
+            
+            users_path = os.path.join(base_dir, 'data', 'dashboard_data', 'users.csv')
+            films_path = os.path.join(base_dir, 'data', 'dashboard_data', 'data_of_all_films.csv')
+            
+            if os.path.exists(users_path):
+                print(f"Loading users from: {users_path}")
+                cls._users_df = pd.read_csv(users_path)
+                print(f"Loaded {len(cls._users_df)} users")
+            else:
+                print(f"Users file not found at: {users_path}")
+            
+            if os.path.exists(films_path):
+                print(f"Loading films from: {films_path}")
+                cls._films_df = pd.read_csv(films_path)
+                print(f"Loaded {len(cls._films_df)} films")
+                
+                cls._films_df['revenue'] = pd.to_numeric(cls._films_df['revenue'], errors='coerce').fillna(0)
+                cls._films_df['budget'] = pd.to_numeric(cls._films_df['budget'], errors='coerce').fillna(0)
+                cls._films_df['roi'] = cls._films_df.apply(
+                    lambda row: round(row['revenue'] / row['budget'], 2) if row['budget'] > 0 else 0,
+                    axis=1
+                )
+                print("Films data processed successfully")
+            else:
+                print(f"Films file not found at: {films_path}")
+            
+            return True
+        except Exception as e:
+            print(f"Failed to load analytics data: {e}")
+            return False
+    
+    @classmethod
+    def get_user_demographics(cls):
+        if cls._users_df is None:
+            cls.load_data()
+        
+        if cls._users_df is None:
+            return {}
+        
+        try:
+            demographics = {
+                'total_users': len(cls._users_df),
+                'by_gender': cls._users_df['gender'].value_counts().to_dict(),
+                'by_age_group': cls._users_df['age_group'].value_counts().to_dict(),
+                'by_occupation': cls._users_df['occupation'].value_counts().to_dict()
+            }
+            return demographics
+        except Exception as e:
+            print(f"Demographics analysis failed: {e}")
+            return {}
+    
+    @classmethod
+    def get_financial_kpis(cls):
+        if cls._films_df is None:
+            cls.load_data()
+        
+        if cls._films_df is None:
+            return {}
+        
+        try:
+            valid_films = cls._films_df[(cls._films_df['budget'] > 0) & (cls._films_df['revenue'] > 0)]
+            
+            total_revenue = valid_films['revenue'].sum()
+            total_budget = valid_films['budget'].sum()
+            avg_roi = valid_films['roi'].mean()
+            avg_rating = cls._films_df['vote_average'].mean()
+            
+            return {
+                'total_movies': len(cls._films_df),
+                'total_revenue_b': round(total_revenue / 1_000_000_000, 1),
+                'total_budget_b': round(total_budget / 1_000_000_000, 1),
+                'avg_roi': round(avg_roi, 1),
+                'avg_rating': round(avg_rating, 1),
+                'profitable_ratio': round(len(valid_films[valid_films['roi'] > 1]) / len(valid_films) * 100, 1)
+            }
+        except Exception as e:
+            print(f"KPI calculation failed: {e}")
+            return {}
+    
+    @classmethod
+    def get_genre_statistics(cls):
+        if cls._films_df is None:
+            cls.load_data()
+        
+        if cls._films_df is None:
+            return []
+        
+        try:
+            genre_stats = {}
+            
+            for _, row in cls._films_df.iterrows():
+                genres = str(row.get('genres', '')).split('|')
+                budget = row.get('budget', 0)
+                revenue = row.get('revenue', 0)
+                roi = row.get('roi', 0)
+                
+                for genre in genres:
+                    genre = genre.strip()
+                    if not genre or genre == 'nan':
+                        continue
+                    
+                    if genre not in genre_stats:
+                        genre_stats[genre] = {
+                            'genre': genre,
+                            'count': 0,
+                            'total_budget': 0,
+                            'total_revenue': 0,
+                            'budget_count': 0,
+                            'revenue_count': 0,
+                            'roi_sum': 0,
+                            'roi_count': 0
+                        }
+                    
+                    genre_stats[genre]['count'] += 1
+                    
+                    if budget > 0:
+                        genre_stats[genre]['total_budget'] += budget
+                        genre_stats[genre]['budget_count'] += 1
+                    
+                    if revenue > 0:
+                        genre_stats[genre]['total_revenue'] += revenue
+                        genre_stats[genre]['revenue_count'] += 1
+                    
+                    if roi > 0:
+                        genre_stats[genre]['roi_sum'] += roi
+                        genre_stats[genre]['roi_count'] += 1
+            
+            results = []
+            for genre, data in genre_stats.items():
+                avg_budget = (data['total_budget'] / data['budget_count'] / 1_000_000) if data['budget_count'] > 0 else 0
+                avg_revenue = (data['total_revenue'] / data['revenue_count'] / 1_000_000) if data['revenue_count'] > 0 else 0
+                avg_roi = (data['roi_sum'] / data['roi_count']) if data['roi_count'] > 0 else 0
+                
+                results.append({
+                    'genre': genre,
+                    'count': data['count'],
+                    'avg_budget': round(avg_budget, 0),
+                    'avg_revenue': round(avg_revenue, 0),
+                    'avg_roi': round(avg_roi, 1)
+                })
+            
+            results.sort(key=lambda x: x['avg_roi'], reverse=True)
+            return results
+            
+        except Exception as e:
+            print(f"Genre stats calculation failed: {e}")
+            return []
+    
+    @classmethod
+    def get_top_movies(cls, limit=10, genre=None):
+        if cls._films_df is None:
+            cls.load_data()
+        
+        if cls._films_df is None:
+            return []
+        
+        try:
+            valid_films = cls._films_df[(cls._films_df['budget'] > 0) & (cls._films_df['revenue'] > 0)].copy()
+            
+            if genre:
+                valid_films = valid_films[valid_films['genres'].str.contains(genre, case=False, na=False)]
+            
+            valid_films = valid_films.sort_values('roi', ascending=False).head(limit)
+            
+            results = []
+            for _, row in valid_films.iterrows():
+                year = str(row.get('release_date', ''))[:4] if pd.notna(row.get('release_date')) else ''
+                
+                results.append({
+                    'title': str(row['title']),
+                    'year': year,
+                    'genres': str(row.get('genres', '')),
+                    'poster': str(row.get('poster_url', '')),
+                    'budget_m': round(row['budget'] / 1_000_000, 0),
+                    'revenue_m': round(row['revenue'] / 1_000_000, 0),
+                    'roi': round(row['roi'], 1),
+                    'vote_average': round(row.get('vote_average', 0), 1),
+                    'overview': str(row.get('description', ''))
+                })
+            
+            return results
+            
+        except Exception as e:
+            print(f"Top movies query failed: {e}")
+            return []
+    
+    @classmethod
+    def analyze_audience_for_genre(cls, genre):
+        if cls._users_df is None or cls._films_df is None:
+            cls.load_data()
+        
+        try:
+            genre_films = cls._films_df[cls._films_df['genres'].str.contains(genre, case=False, na=False)]
+            
+            avg_popularity = genre_films['popularity'].mean() if 'popularity' in genre_films else 0
+            
+            insights = {
+                'avg_popularity': round(avg_popularity, 1),
+                'total_films': len(genre_films),
+                'age_distribution': {
+                    'Under 18': 15,
+                    '18-24': 25,
+                    '25-34': 30,
+                    '35-44': 20,
+                    '45-49': 7,
+                    '50-55': 2,
+                    '56+': 1
+                }
+            }
+            
+            return insights
+            
+        except Exception as e:
+            print(f"Audience analysis failed: {e}")
+            return {}

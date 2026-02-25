@@ -19,6 +19,11 @@ from django.urls import path, include
 from movies import views
 
 urlpatterns = [
+    # Place specific admin-dashboard routes before the generic 'admin/'
+    # so admin.site.urls doesn't capture them and return 404.
+    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard_alt'),
+    path('admin/dashboard/api/', views.admin_dashboard_api, name='admin_dashboard_api_alt'),
+
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('accounts/signup/', views.signup, name='signup'),
@@ -29,6 +34,4 @@ urlpatterns = [
     path('movie/<str:movie_id>/', views.movie_detail, name='movie_detail'),
     path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('dashboard/api/', views.admin_dashboard_api, name='admin_dashboard_api'),
-    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard_alt'),
-    path('admin/dashboard/api/', views.admin_dashboard_api, name='admin_dashboard_api_alt'),
 ]
