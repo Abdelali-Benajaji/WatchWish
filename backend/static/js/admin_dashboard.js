@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initModal();
     initNavigation();
     initSearch();
+    initMoviesPage();
+    initStatisticsPage();
 
     await loadRealData();
     initAudienceRing();
@@ -34,6 +36,14 @@ async function loadKPIs() {
         animateCounter(".kpi-revenue", d.total_revenue_b, 1, "B", "$");
         animateCounter(".kpi-roi", d.avg_roi, 1, "x");
         animateCounter(".kpi-rating", d.avg_rating, 1, "/10");
+        
+        document.querySelectorAll(".kpi-card").forEach((card, i) => {
+            card.style.cursor = "pointer";
+            card.addEventListener("click", () => {
+                if (i === 0) navigateTo("movies");
+                else if (i === 1 || i === 2 || i === 3) navigateTo("statistics");
+            });
+        });
     } catch (e) {
         console.error("KPI load failed:", e);
         initDemoKPIs();
@@ -507,6 +517,16 @@ function initNavigation() {
     if (backBtn) {
         backBtn.addEventListener("click", () => navigateTo("dashboard"));
     }
+    
+    const backBtnMovies = document.getElementById("backToDashFromMovies");
+    if (backBtnMovies) {
+        backBtnMovies.addEventListener("click", () => navigateTo("dashboard"));
+    }
+    
+    const backBtnStats = document.getElementById("backToDashFromStats");
+    if (backBtnStats) {
+        backBtnStats.addEventListener("click", () => navigateTo("dashboard"));
+    }
 }
 
 async function navigateTo(view, genre = null) {
@@ -516,9 +536,26 @@ async function navigateTo(view, genre = null) {
 
     document.getElementById("dashboardView").classList.toggle("hidden", view !== "dashboard");
     document.getElementById("audienceView").classList.toggle("hidden", view !== "audience");
+    document.getElementById("moviesView").classList.toggle("hidden", view !== "movies");
+    document.getElementById("statisticsView").classList.toggle("hidden", view !== "statistics");
+
+    const pageTitle = document.querySelector(".page-title");
+    if (pageTitle) {
+        const titles = {
+            "dashboard": "Admin Dashboard",
+            "movies": "Movies Database",
+            "statistics": "Statistics & Analytics",
+            "audience": "Audience Analysis"
+        };
+        pageTitle.textContent = titles[view] || "Admin Dashboard";
+    }
 
     if (view === "audience" && genre) {
         await loadGenreAudience(genre);
+    } else if (view === "movies") {
+        await loadMoviesPage();
+    } else if (view === "statistics") {
+        await loadStatisticsPage();
     }
 }
 
@@ -626,12 +663,55 @@ function renderVanguardTable(movies) {
 function initSearch() {
     const searchInput = document.getElementById("globalSearch");
     if (searchInput) {
-        searchInput.addEventListener("keypress", (e) => {
+        searchInput.addEventListener("keypress", async (e) => {
             if (e.key === "Enter") {
                 const query = searchInput.value.trim();
                 if (query) {
-                    window.location.href = `${API_BASE}/?movie=${encodeURIComponent(query)}`;
+                    currentMoviesSearch = query;
+                    currentMoviesPage = 1;
+                    await navigateTo("movies");
+                    const moviesSearchInput = document.getElementById("moviesSearch");
+                    if (moviesSearchInput) {
+                        moviesSearchInput.value = query;
+                    }
                 }
+            }
+        });
+    }
+    
+    const quickStatsBtn = document.getElementById("quickStatsBtn");
+    if (quickStatsBtn) {
+        quickStatsBtn.addEventListener("click", () => {
+            navigateTo("statistics");
+        });
+    }
+    
+    const viewAllMoviesBtn = document.getElementById("viewAllMoviesBtn");
+    if (viewAllMoviesBtn) {
+        viewAllMoviesBtn.addEventListener("click", () => {
+            navigateTo("movies");
+        });
+    }
+    
+    const viewStatsBtn = document.getElementById("viewStatsBtn");
+    if (viewStatsBtn) {
+        viewStatsBtn.addEventListener("click", () => {
+            navigateTo("statistics");
+        });
+    }
+    
+    const analyzeGenreBtn = document.getElementById("analyzeGenreBtn");
+    if (analyzeGenreBtn) {
+        analyzeGenreBtn.addEventListener("click", async () => {
+            try {
+                const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=genre_stats`);
+                const json = await res.json();
+                if (json.data && json.data.length > 0) {
+                    const topGenre = json.data.sort((a, b) => b.avg_roi - a.avg_roi)[0];
+                    navigateTo("audience", topGenre.genre);
+                }
+            } catch (e) {
+                console.error("Failed to load genre for analysis:", e);
             }
         });
     }
@@ -662,3 +742,302 @@ const DEMO_GENRE_STATS = [
     { genre: "Action", avg_budget: 165, avg_revenue: 520, avg_roi: 3.2, count: 350 },
     { genre: "Drama", avg_budget: 38, avg_revenue: 112, avg_roi: 2.9, count: 400 },
 ];
+
+/* ═══════════════════════════════════════════════════════════════
+   MOVIES PAGE
+   ═══════════════════════════════════════════════════════════════ */
+let currentMoviesPage = 1;
+let currentMoviesSearch = '';
+let currentMoviesGenre = '';
+
+function initMoviesPage() {
+    const searchInput = document.getElementById("moviesSearch");
+    const genreFilter = document.getElementById("moviesGenreFilter");
+    const prevBtn = document.getElementById("prevPage");
+    const nextBtn = document.getElementById("nextPage");
+
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener("input", (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentMoviesSearch = e.target.value.trim();
+                currentMoviesPage = 1;
+                loadMoviesPage();
+            }, 500);
+        });
+    }
+
+    if (genreFilter) {
+        genreFilter.addEventListener("change", (e) => {
+            currentMoviesGenre = e.target.value;
+            currentMoviesPage = 1;
+            loadMoviesPage();
+        });
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener("click", () => {
+            if (currentMoviesPage > 1) {
+                currentMoviesPage--;
+                loadMoviesPage();
+            }
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener("click", () => {
+            currentMoviesPage++;
+            loadMoviesPage();
+        });
+    }
+}
+
+async function loadMoviesPage() {
+    const grid = document.getElementById("moviesGrid");
+    const pagination = document.getElementById("moviesPagination");
+    const pageInfo = document.getElementById("pageInfo");
+    const prevBtn = document.getElementById("prevPage");
+    const nextBtn = document.getElementById("nextPage");
+    const countEl = document.getElementById("moviesCount");
+
+    if (!grid) return;
+
+    grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading movies...</div>';
+
+    try {
+        let url = `${API_BASE}/dashboard/movies/?page=${currentMoviesPage}`;
+        if (currentMoviesSearch) {
+            url += `&search=${encodeURIComponent(currentMoviesSearch)}`;
+        }
+        if (currentMoviesGenre) {
+            url += `&genre=${encodeURIComponent(currentMoviesGenre)}`;
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.movies && data.movies.length > 0) {
+            grid.innerHTML = data.movies.map((movie, i) => {
+                const poster = movie.poster || movie.poster_url || '';
+                const genres = (movie.genres || '').split('|').slice(0, 3).join(' · ');
+                const rating = movie.vote_average ? `⭐ ${movie.vote_average.toFixed(1)}` : '';
+                
+                return `
+                    <div class="movie-card" data-index="${i}">
+                        ${poster ? `<img src="${poster}" alt="${movie.title}" class="movie-card-poster">` : '<div class="movie-card-poster-placeholder"></div>'}
+                        <div class="movie-card-body">
+                            <h3 class="movie-card-title">${movie.title}</h3>
+                            <p class="movie-card-genres">${genres}</p>
+                            ${rating ? `<span class="movie-card-rating">${rating}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('.movie-card').forEach((card, i) => {
+                card.style.cursor = 'pointer';
+                card.addEventListener('click', () => {
+                    const movie = data.movies[i];
+                    showMovieDetailModal(movie);
+                });
+            });
+
+            if (countEl) {
+                countEl.textContent = `Total: ${data.total}`;
+            }
+
+            if (pagination) {
+                pagination.style.display = 'flex';
+                pageInfo.textContent = `Page ${currentMoviesPage}`;
+                prevBtn.disabled = currentMoviesPage <= 1;
+                nextBtn.disabled = !data.has_more;
+            }
+        } else {
+            grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">No movies found.</div>';
+            if (pagination) pagination.style.display = 'none';
+        }
+
+        lucide.createIcons();
+    } catch (e) {
+        console.error("Movies load failed:", e);
+        grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">Failed to load movies.</div>';
+    }
+}
+
+function showMovieDetailModal(movie) {
+    const modal = document.getElementById("movieModal");
+    if (!modal) return;
+
+    document.getElementById("modalPoster").src = movie.poster || movie.poster_url || '';
+    document.getElementById("modalTitle").textContent = movie.title;
+    document.getElementById("modalGenre").textContent = (movie.genres || '').split('|').join(' · ');
+    document.getElementById("modalYear").textContent = movie.year || '';
+    document.getElementById("modalOverview").textContent = movie.overview || movie.description || 'No synopsis available.';
+
+    const budget = movie.budget || 0;
+    const revenue = movie.revenue || 0;
+    const budgetM = budget > 0 ? `$${Math.round(budget / 1_000_000)}M` : 'N/A';
+    const revenueM = revenue > 0 ? `$${Math.round(revenue / 1_000_000)}M` : 'N/A';
+    const roi = (budget > 0 && revenue > 0) ? `${(revenue / budget).toFixed(1)}x` : 'N/A';
+
+    document.getElementById("modalBudget").textContent = budgetM;
+    document.getElementById("modalRevenue").textContent = revenueM;
+    document.getElementById("modalROI").textContent = roi;
+    document.getElementById("modalRating").textContent = movie.vote_average ? movie.vote_average.toFixed(1) : '0.0';
+
+    modal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    lucide.createIcons();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STATISTICS PAGE
+   ═══════════════════════════════════════════════════════════════ */
+let genreDistChart, genreRevenueChart;
+
+function initStatisticsPage() {
+}
+
+async function loadStatisticsPage() {
+    await Promise.all([
+        loadStatsKPIs(),
+        loadStatsCharts()
+    ]);
+}
+
+async function loadStatsKPIs() {
+    try {
+        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=kpis`);
+        const json = await res.json();
+        const d = json.data;
+
+        document.getElementById("statsMovieCount").textContent = d.total_movies || 0;
+        document.getElementById("statsRevenue").textContent = `$${d.total_revenue_b || 0}B`;
+        document.getElementById("statsROI").textContent = `${d.avg_roi || 0}x`;
+        document.getElementById("statsRating").textContent = (d.avg_rating || 0).toFixed(1);
+    } catch (e) {
+        console.error("Stats KPIs load failed:", e);
+    }
+}
+
+async function loadStatsCharts() {
+    try {
+        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=genre_stats`);
+        const json = await res.json();
+        const stats = json.data;
+
+        renderGenreDistChart(stats);
+        renderGenreRevenueChart(stats);
+        renderGenreStatsTable(stats);
+    } catch (e) {
+        console.error("Stats charts load failed:", e);
+    }
+}
+
+function renderGenreDistChart(stats) {
+    const ctx = document.getElementById("genreDistChart");
+    if (!ctx) return;
+
+    const sorted = [...stats].sort((a, b) => b.count - a.count).slice(0, 10);
+    const labels = sorted.map(d => d.genre);
+    const counts = sorted.map(d => d.count);
+    const colors = labels.map(g => colorFor(g).border);
+
+    if (genreDistChart) genreDistChart.destroy();
+
+    genreDistChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: counts,
+                backgroundColor: colors.map(c => c.replace(')', ', 0.7)').replace('rgb', 'rgba')),
+                borderColor: colors,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 12, padding: 10 } },
+                tooltip: {
+                    backgroundColor: 'rgba(10,10,26,.94)',
+                    borderColor: 'rgba(229,9,20,.4)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: ctx => `${ctx.label}: ${ctx.raw} movies`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderGenreRevenueChart(stats) {
+    const ctx = document.getElementById("genreRevenueChart");
+    if (!ctx) return;
+
+    const sorted = [...stats].sort((a, b) => b.avg_revenue - a.avg_revenue).slice(0, 10);
+    const labels = sorted.map(d => d.genre);
+    const revenues = sorted.map(d => d.avg_revenue);
+    const colors = labels.map(g => colorFor(g).border);
+
+    if (genreRevenueChart) genreRevenueChart.destroy();
+
+    genreRevenueChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Avg Revenue ($M)',
+                data: revenues,
+                backgroundColor: colors.map(c => c.replace(')', ', 0.7)').replace('rgb', 'rgba')),
+                borderColor: colors,
+                borderWidth: 1.5,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(10,10,26,.94)',
+                    borderColor: 'rgba(229,9,20,.4)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: ctx => `Revenue: $${ctx.raw}M`
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false } },
+                y: {
+                    grid: { color: 'rgba(255,255,255,.04)' },
+                    ticks: { callback: v => '$' + v + 'M' },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderGenreStatsTable(stats) {
+    const tbody = document.querySelector("#statsGenreTable tbody");
+    if (!tbody) return;
+
+    const sorted = [...stats].sort((a, b) => b.avg_roi - a.avg_roi);
+
+    tbody.innerHTML = sorted.map(s => `
+        <tr>
+            <td><strong>${s.genre}</strong></td>
+            <td>${s.count}</td>
+            <td>$${s.avg_budget}M</td>
+            <td>$${s.avg_revenue}M</td>
+            <td class="${s.avg_roi >= 3 ? 'up' : ''}">${s.avg_roi}x</td>
+        </tr>
+    `).join('');
+}

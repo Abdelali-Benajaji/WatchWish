@@ -44,11 +44,11 @@
                 <i data-lucide="users"></i>
                 <span>Audience</span>
             </a>
-            <a href="#" class="nav-item" data-tooltip="Movies">
+            <a href="#" class="nav-item" data-page="movies" data-tooltip="Movies">
                 <i data-lucide="film"></i>
                 <span>Movies</span>
             </a>
-            <a href="#" class="nav-item" data-tooltip="Statistics">
+            <a href="#" class="nav-item" data-page="statistics" data-tooltip="Statistics">
                 <i data-lucide="bar-chart-3"></i>
                 <span>Statistics</span>
             </a>
@@ -77,12 +77,11 @@
                 <span class="page-subtitle">Movie Intelligence & Analytics</span>
             </div>
             <div class="topbar-right">
-                <div class="search-box">
+                <!-- <div class="search-box">
                     <i data-lucide="search"></i>
-                    <input type="text" placeholder="Search movies, genres..." id="globalSearch">
-                </div>
-                <button class="icon-btn" id="notifBtn"><i data-lucide="bell"></i><span class="notif-dot"></span></button>
-                <button class="icon-btn" id="themeBtn"><i data-lucide="moon"></i></button>
+                    <input type="text" placeholder="Search movies..." id="globalSearch">
+                </div> -->
+                <button class="icon-btn" data-tooltip="Quick Stats" id="quickStatsBtn"><i data-lucide="bar-chart-2"></i></button>
             </div>
         </header>
 
@@ -90,7 +89,7 @@
         <div id="dashboardView" class="view-content">
             <!-- KPI Strip -->
             <section class="kpi-strip">
-                <div class="kpi-card">
+                <div class="kpi-card" data-tooltip="Click to view all movies" title="View Movies Database">
                     <div class="kpi-icon red"><i data-lucide="film"></i></div>
                     <div class="kpi-body">
                         <span class="kpi-value kpi-movies">…</span>
@@ -98,7 +97,7 @@
                     </div>
                     <span class="kpi-trend up">Database</span>
                 </div>
-                <div class="kpi-card">
+                <div class="kpi-card" data-tooltip="Click for detailed statistics" title="View Statistics">
                     <div class="kpi-icon blue"><i data-lucide="dollar-sign"></i></div>
                     <div class="kpi-body">
                         <span class="kpi-value kpi-revenue">…</span>
@@ -106,7 +105,7 @@
                     </div>
                     <span class="kpi-trend up">Real Data</span>
                 </div>
-                <div class="kpi-card">
+                <div class="kpi-card" data-tooltip="Click for detailed statistics" title="View Statistics">
                     <div class="kpi-icon cyan"><i data-lucide="trending-up"></i></div>
                     <div class="kpi-body">
                         <span class="kpi-value kpi-roi">…</span>
@@ -114,7 +113,7 @@
                     </div>
                     <span class="kpi-trend up">Performance</span>
                 </div>
-                <div class="kpi-card">
+                <div class="kpi-card" data-tooltip="Click for detailed statistics" title="View Statistics">
                     <div class="kpi-icon pink"><i data-lucide="star"></i></div>
                     <div class="kpi-body">
                         <span class="kpi-value kpi-rating">…</span>
@@ -208,24 +207,29 @@
                     </div>
                 </div>
 
-                <!-- Predictive Audience (Quick Look) -->
+                <!-- Quick Actions -->
                 <div class="card card-audience-mini">
                     <div class="card-header">
                         <div class="card-title-group">
-                            <i data-lucide="target" class="card-icon"></i>
-                            <h2>Audience Overview</h2>
+                            <i data-lucide="zap" class="card-icon"></i>
+                            <h2>Quick Actions</h2>
                         </div>
                     </div>
-                    <div class="audience-ring-wrap" style="width: 120px; height: 120px; margin-bottom: 12px;">
-                        <svg class="audience-ring" viewBox="0 0 160 160">
-                            <circle class="ring-bg" cx="80" cy="80" r="70" />
-                            <circle class="ring-fg" cx="80" cy="80" r="70" id="audienceRing" />
-                        </svg>
-                        <div class="audience-ring-label">
-                            <span class="ring-pct" id="audiencePct" style="font-size: 1.2rem;">0%</span>
-                        </div>
+                    <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
+                        <button class="btn-action" id="viewAllMoviesBtn">
+                            <i data-lucide="film"></i>
+                            <span>Browse All Movies</span>
+                        </button>
+                        <button class="btn-action" id="viewStatsBtn">
+                            <i data-lucide="bar-chart-3"></i>
+                            <span>View Statistics</span>
+                        </button>
+                        <button class="btn-action" id="analyzeGenreBtn">
+                            <i data-lucide="users"></i>
+                            <span>Analyze Audience</span>
+                        </button>
                     </div>
-                    <p class="card-desc" style="text-align: center; font-size: 0.75rem;">Click on a genre in the ROI chart for detailed audience analysis.</p>
+                    <p class="card-desc" style="text-align: center; font-size: 0.7rem; margin-top: 16px;">Click on a genre in the ROI chart to view detailed audience analysis.</p>
                 </div>
 
                 <!-- Genre Performance Table -->
@@ -259,6 +263,148 @@
                 </div>
 
             </section>
+        </div>
+
+        <!-- Movies View -->
+        <div id="moviesView" class="view-content hidden">
+            <div class="view-header">
+                <button class="back-btn" id="backToDashFromMovies"><i data-lucide="arrow-left"></i> Back</button>
+                <h2 class="view-title">Movies Database</h2>
+            </div>
+
+            <div class="movies-controls">
+                <div class="search-box" style="flex: 1; max-width: 500px;">
+                    <i data-lucide="search"></i>
+                    <input type="text" placeholder="Search movies..." id="moviesSearch">
+                </div>
+                <!-- <select id="moviesGenreFilter" class="genre-filter-select">
+                    <option value="">All Genres</option>
+                    <option value="Action">Action</option>
+                    <option value="Adventure">Adventure</option>
+                    <option value="Animation">Animation</option>
+                    <option value="Comedy">Comedy</option>
+                    <option value="Crime">Crime</option>
+                    <option value="Documentary">Documentary</option>
+                    <option value="Drama">Drama</option>
+                    <option value="Fantasy">Fantasy</option>
+                    <option value="Horror">Horror</option>
+                    <option value="Mystery">Mystery</option>
+                    <option value="Romance">Romance</option>
+                    <option value="Sci-Fi">Sci-Fi</option>
+                    <option value="Thriller">Thriller</option>
+                </select>
+                <div class="movies-count" id="moviesCount">Total: 0</div> -->
+            </div>
+
+            <div class="movies-grid" id="moviesGrid">
+                <div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading movies...</div>
+            </div>
+
+            <div class="pagination" id="moviesPagination" style="display: none;">
+                <button class="btn-secondary" id="prevPage" disabled>Previous</button>
+                <span id="pageInfo">Page 1</span>
+                <button class="btn-secondary" id="nextPage">Next</button>
+            </div>
+        </div>
+
+        <!-- Statistics View -->
+        <div id="statisticsView" class="view-content hidden">
+            <div class="view-header">
+                <button class="back-btn" id="backToDashFromStats"><i data-lucide="arrow-left"></i> Back</button>
+                <h2 class="view-title">Statistics & Analytics</h2>
+            </div>
+
+            <section class="stats-kpi-grid">
+                <div class="card stats-kpi-card">
+                    <div class="stats-kpi-icon" style="background: var(--gradient-red);">
+                        <i data-lucide="film"></i>
+                    </div>
+                    <div class="stats-kpi-body">
+                        <span class="stats-kpi-value" id="statsMovieCount">0</span>
+                        <span class="stats-kpi-label">Total Movies</span>
+                    </div>
+                </div>
+                <div class="card stats-kpi-card">
+                    <div class="stats-kpi-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                        <i data-lucide="dollar-sign"></i>
+                    </div>
+                    <div class="stats-kpi-body">
+                        <span class="stats-kpi-value" id="statsRevenue">$0B</span>
+                        <span class="stats-kpi-label">Total Revenue</span>
+                    </div>
+                </div>
+                <div class="card stats-kpi-card">
+                    <div class="stats-kpi-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                        <i data-lucide="trending-up"></i>
+                    </div>
+                    <div class="stats-kpi-body">
+                        <span class="stats-kpi-value" id="statsROI">0x</span>
+                        <span class="stats-kpi-label">Average ROI</span>
+                    </div>
+                </div>
+                <div class="card stats-kpi-card">
+                    <div class="stats-kpi-icon" style="background: linear-gradient(135deg, #ec4899, #db2777);">
+                        <i data-lucide="star"></i>
+                    </div>
+                    <div class="stats-kpi-body">
+                        <span class="stats-kpi-value" id="statsRating">0.0</span>
+                        <span class="stats-kpi-label">Average Rating</span>
+                    </div>
+                </div>
+            </section>
+
+            <div class="stats-grid">
+                <div class="card card-chart full-width">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="pie-chart" class="card-icon"></i>
+                            <h2>Genre Distribution</h2>
+                        </div>
+                    </div>
+                    <div class="chart-wrap" style="height: 350px;">
+                        <canvas id="genreDistChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card card-chart full-width">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="trending-up" class="card-icon"></i>
+                            <h2>Top Genres by Revenue</h2>
+                        </div>
+                    </div>
+                    <div class="chart-wrap" style="height: 350px;">
+                        <canvas id="genreRevenueChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card card-table full-width">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="list" class="card-icon"></i>
+                            <h2>Genre Performance Summary</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="statsGenreTable">
+                            <thead>
+                                <tr>
+                                    <th>Genre</th>
+                                    <th>Movies</th>
+                                    <th>Avg Budget</th>
+                                    <th>Avg Revenue</th>
+                                    <th>Avg ROI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Audience View -->

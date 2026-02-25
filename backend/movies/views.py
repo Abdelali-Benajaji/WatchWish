@@ -294,6 +294,35 @@ def admin_dashboard(request):
     return render(request, 'admin_dashboard.html', context)
 
 @admin_required
+def admin_movies_list(request):
+    page = int(request.GET.get('page', 1))
+    search = request.GET.get('search', '').strip()
+    genre = request.GET.get('genre', '').strip()
+    
+    limit = 20
+    skip = (page - 1) * limit
+    
+    if search:
+        movies = MovieService.search_movies(search, limit=1000)
+    elif genre:
+        movies = MovieService.get_movies_by_genre(genre, limit=1000)
+    else:
+        movies = MovieService.get_all_movies(limit=1000, skip=skip)
+    
+    total_count = len(movies)
+    movies_page = movies[skip:skip + limit] if skip > 0 else movies[:limit]
+    
+    for movie in movies_page:
+        movie['genre_list'] = movie.get('genres', '').split('|')
+    
+    return JsonResponse({
+        'movies': movies_page,
+        'page': page,
+        'total': total_count,
+        'has_more': len(movies) > skip + limit
+    })
+
+@admin_required
 @csrf_exempt
 def admin_dashboard_api(request):
     from .models import User
