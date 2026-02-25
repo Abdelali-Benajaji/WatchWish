@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineMetrics — Intelligence Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --card: #161620;
+    --card2: #1c1c2a;
+    --border: #2a2a3a;
+    --red: #e50914;
+    --red2: #ff3040;
+    --anthracite: #1e1e2e;
+    --blue: #3b82f6;
+    --green: #10b981;
+    --orange: #f59e0b;
+    --purple: #8b5cf6;
+    --text: #f0f0f5;
+    --muted: #6b7280;
+    --accent: #e50914;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+  
+  /* LAYOUT */
+  .shell { display:flex; min-height:100vh; }
+  .sidebar { width:240px; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; height:100vh; z-index:100; }
+  .main { margin-left:240px; flex:1; padding:32px; min-height:100vh; }
+
+  /* SIDEBAR */
+  .logo { padding:28px 24px 20px; border-bottom:1px solid var(--border); }
+  .logo-text { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; letter-spacing:0.05em; }
+  .logo-text span { color:var(--red); }
+  .logo-sub { color:var(--muted); font-size:11px; letter-spacing:0.15em; text-transform:uppercase; margin-top:2px; }
+  .nav { padding:20px 12px; flex:1; }
+  .nav-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:10px; cursor:pointer; color:var(--muted); font-size:14px; font-weight:500; transition:all .2s; margin-bottom:4px; }
+  .nav-item:hover { background:var(--card); color:var(--text); }
+  .nav-item.active { background:rgba(229,9,20,.12); color:var(--red2); border:1px solid rgba(229,9,20,.2); }
+  .nav-icon { font-size:18px; width:22px; text-align:center; }
+  .nav-badge { margin-left:auto; background:var(--red); color:#fff; font-size:10px; padding:2px 7px; border-radius:99px; font-weight:700; }
+  .sidebar-footer { padding:20px 24px; border-top:1px solid var(--border); }
+  .status-dot { width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; margin-right:8px; box-shadow:0 0 6px #10b981; }
+
+  /* PAGES */
+  .page { display:none; animation:fadeUp .3s ease; }
+  .page.active { display:block; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* PAGE HEADER */
+  .page-header { margin-bottom:28px; }
+  .page-title { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; }
+  .page-title span { color:var(--red); }
+  .page-sub { color:var(--muted); font-size:14px; margin-top:4px; }
+
+  /* KPI CARDS */
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+  .kpi-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 22px; position:relative; overflow:hidden; transition:transform .2s; }
+  .kpi-card:hover { transform:translateY(-2px); }
+  .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+  .kpi-card:nth-child(1)::before { background:linear-gradient(90deg,var(--red),var(--red2)); }
+  .kpi-card:nth-child(2)::before { background:linear-gradient(90deg,var(--blue),#60a5fa); }
+  .kpi-card:nth-child(3)::before { background:linear-gradient(90deg,var(--green),#34d399); }
+  .kpi-card:nth-child(4)::before { background:linear-gradient(90deg,var(--purple),#a78bfa); }
+  .kpi-label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.1em; margin-bottom:8px; }
+  .kpi-value { font-family:'Syne',sans-serif; font-size:30px; font-weight:800; }
+  .kpi-delta { font-size:12px; margin-top:6px; }
+  .kpi-delta.up { color:var(--green); }
+  .kpi-delta.down { color:var(--orange); }
+  .kpi-icon { position:absolute; top:18px; right:20px; font-size:28px; opacity:.15; }
+
+  /* GRID LAYOUTS */
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+  .grid-70-30 { display:grid; grid-template-columns:1fr 380px; gap:16px; margin-bottom:16px; }
+  .grid-30-70 { display:grid; grid-template-columns:380px 1fr; gap:16px; margin-bottom:16px; }
+
+  /* CHART CARDS */
+  .chart-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px; }
+  .chart-title { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; margin-bottom:4px; }
+  .chart-sub { color:var(--muted); font-size:12px; margin-bottom:18px; }
+  .chart-wrap { position:relative; }
+
+  /* PAGE 2 - AUDIENCE */
+  .filter-bar { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px 24px; margin-bottom:20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .filter-label { color:var(--muted); font-size:13px; font-weight:500; }
+  .genre-btn { background:var(--card2); border:1px solid var(--border); color:var(--muted); padding:7px 16px; border-radius:99px; cursor:pointer; font-size:13px; font-family:'DM Sans',sans-serif; transition:all .2s; }
+  .genre-btn:hover, .genre-btn.active { background:rgba(229,9,20,.15); border-color:var(--red); color:var(--red2); }
+
+  /* PAGE 3 - STUDIO SIM */
+  .search-hero { background:linear-gradient(135deg, #161620 0%, #1c1c2a 100%); border:1px solid var(--border); border-radius:18px; padding:36px; margin-bottom:24px; text-align:center; position:relative; overflow:hidden; }
+  .search-hero::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 50% -20%, rgba(229,9,20,.12), transparent 60%); }
+  .search-hero h2 { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; margin-bottom:6px; position:relative; }
+  .search-hero p { color:var(--muted); font-size:14px; margin-bottom:20px; position:relative; }
+  .pitch-input-wrap { position:relative; max-width:700px; margin:0 auto; }
+  .pitch-input { width:100%; background:rgba(255,255,255,.06); border:1.5px solid var(--border); color:var(--text); padding:16px 60px 16px 22px; border-radius:14px; font-size:15px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color .2s; }
+  .pitch-input:focus { border-color:var(--red); }
+  .pitch-btn { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:var(--red); border:none; color:#fff; padding:10px 18px; border-radius:10px; cursor:pointer; font-family:'Syne',sans-serif; font-weight:700; font-size:13px; transition:background .2s; }
+  .pitch-btn:hover { background:var(--red2); }
+  .rec-gallery { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:24px; }
+  .rec-card { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; transition:all .25s; position:relative; }
+  .rec-card:hover { transform:translateY(-4px) scale(1.02); border-color:var(--red); box-shadow:0 12px 32px rgba(229,9,20,.2); }
+  .rec-poster { width:100%; aspect-ratio:2/3; object-fit:cover; display:flex; align-items:center; justify-content:center; font-size:36px; }
+  .rec-poster-bg { width:100%; aspect-ratio:2/3; display:flex; align-items:center; justify-content:center; font-size:40px; }
+  .rec-info { padding:10px 12px; }
+  .rec-title { font-family:'Syne',sans-serif; font-size:12px; font-weight:700; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rec-score { font-size:11px; color:var(--green); font-weight:500; }
+  .rec-genre-tag { display:inline-block; background:rgba(229,9,20,.15); color:var(--red2); font-size:10px; padding:2px 7px; border-radius:99px; margin-top:3px; }
+  .similarity-bar { height:4px; background:var(--border); border-radius:2px; margin-top:6px; overflow:hidden; }
+  .similarity-fill { height:100%; background:linear-gradient(90deg,var(--red),var(--orange)); border-radius:2px; }
+
+  /* PAGE 4 - EXPLORER */
+  .explorer-search { display:flex; gap:12px; margin-bottom:20px; }
+  .movie-select { flex:1; background:var(--card); border:1px solid var(--border); color:var(--text); padding:12px 18px; border-radius:12px; font-size:14px; font-family:'DM Sans',sans-serif; outline:none; cursor:pointer; }
+  .movie-fiche { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; display:flex; flex-direction:column; gap:16px; height:100%; }
+  .movie-poster-big { width:100%; aspect-ratio:2/3; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:72px; margin-bottom:8px; }
+  .movie-meta-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; margin-bottom:6px; }
+  .tag-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .tag { background:var(--card2); border:1px solid var(--border); color:var(--muted); font-size:11px; padding:3px 10px; border-radius:99px; }
+  .tag.red { background:rgba(229,9,20,.15); border-color:rgba(229,9,20,.3); color:var(--red2); }
+  .synopsis { color:var(--muted); font-size:13px; line-height:1.6; }
+  .stat-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  .stat-row:last-child { border-bottom:none; }
+  .stat-label { color:var(--muted); }
+  .stat-val { font-weight:600; }
+
+  /* TABLE */
+  .data-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .data-table th { text-align:left; padding:10px 14px; color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid var(--border); }
+  .data-table td { padding:11px 14px; border-bottom:1px solid rgba(42,42,58,.5); }
+  .data-table tr:hover td { background:rgba(255,255,255,.02); }
+  .rank-badge { display:inline-flex; width:24px; height:24px; background:var(--card2); border:1px solid var(--border); border-radius:6px; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+  .rank-badge.gold { background:rgba(245,158,11,.15); border-color:rgba(245,158,11,.3); color:var(--orange); }
+  .rating-stars { color:var(--orange); letter-spacing:-2px; }
+
+  /* HEATMAP */
+  #heatmap-svg { width:100%; }
+
+  /* GAUGE */
+  .gauge-wrap { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 0; }
+  #gauge-canvas { max-width:220px; }
+  .gauge-label { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; margin-top:-10px; }
+  .gauge-sub { color:var(--muted); font-size:12px; margin-top:2px; }
+  .gauge-verdict { margin-top:14px; padding:8px 20px; border-radius:99px; font-size:13px; font-weight:700; font-family:'Syne',sans-serif; }
+  .gauge-verdict.green { background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.3); color:#34d399; }
+  .gauge-verdict.orange { background:rgba(245,158,11,.15); border:1px solid rgba(245,158,11,.3); color:var(--orange); }
+  .gauge-verdict.red { background:rgba(229,9,20,.15); border:1px solid rgba(229,9,20,.3); color:var(--red2); }
+
+  /* TREEMAP */
+  #treemap-svg text { font-family:'Syne',sans-serif; fill:#fff; pointer-events:none; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  /* RESPONSIVE */
+  @media(max-width:1200px) {
+    .kpi-row { grid-template-columns:repeat(2,1fr); }
+    .rec-gallery { grid-template-columns:repeat(3,1fr); }
+    .grid-3 { grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-text">CINE<span>METRICS</span></div>
+      <div class="logo-sub">Intelligence Dashboard</div>
+    </div>
+    <div class="nav">
+      <div class="nav-item active" onclick="goPage(1,this)"><span class="nav-icon">📈</span> Market Intelligence</div>
+      <div class="nav-item" onclick="goPage(2,this)"><span class="nav-icon">👥</span> Audience Profiling</div>
+      <div class="nav-item" onclick="goPage(3,this)"><span class="nav-icon">🚀</span> Studio Simulator <span class="nav-badge">AI</span></div>
+      <div class="nav-item" onclick="goPage(4,this)"><span class="nav-icon">🔍</span> Movie Explorer</div>
+    </div>
+    <div class="sidebar-footer">
+      <div style="font-size:12px;color:var(--muted)"><span class="status-dot"></span>Model TF-IDF • Active</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Dataset: 9,742 films</div>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ===== PAGE 1: MARKET INTELLIGENCE ===== -->
+    <div class="page active" id="page1">
+      <div class="page-header">
+        <div class="page-title">Market <span>Intelligence</span></div>
+        <div class="page-sub">Industry evolution · Revenue trends · Genre performance</div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">Total Films</div><div class="kpi-value">9,742</div><div class="kpi-delta up">▲ +312 this year</div><div class="kpi-icon">🎬</div></div>
+        <div class="kpi-card"><div class="kpi-label">ROI Moyen</div><div class="kpi-value">243%</div><div class="kpi-delta up">▲ +18% vs 2022</div><div class="kpi-icon">💰</div></div>
+        <div class="kpi-card"><div class="kpi-label">Popularité Moyenne</div><div class="kpi-value">28.4</div><div class="kpi-delta up">▲ +2.1 pts</div><div class="kpi-icon">⭐</div></div>
+        <div class="kpi-card"><div class="kpi-label">Budget Global</div><div class="kpi-value">$4.2B</div><div class="kpi-delta down">▼ -5% post-COVID</div><div class="kpi-icon">📊</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="chart-title">Tree Map des Genres</div>
+          <div class="chart-sub">Volume de films par genre</div>
+          <div id="treemap-container"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Revenus & Volume par Année</div>
+          <div class="chart-sub">Évolution 2000–2023</div>
+          <div class="chart-wrap" style="height:280px">
+            <canvas id="lineChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Bubble Chart · Budget vs Revenu</div>
+        <div class="chart-sub">Taille de la bulle = popularité · Position = performance financière</div>
+        <div class="chart-wrap" style="height:300px">
+          <canvas id="bubbleChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE 2: AUDIENCE PROFILING ===== -->
+    <div class="page" id="page2">
+      <div class="page-header">
+        <div class="page-title">Audience <span>Profiling</span></div>
+        <div class="page-sub">Démographie · Préférences · Comportements de notation</div>
+      </div>
+
+      <div class="filter-bar">
+        <span class="filter-label">Filtrer par genre :</span>
+        <button class="genre-btn active" onclick="setGenre('all',this)">Tous</button>
+        <button class="genre-btn" onclick="setGenre('Action',this)">Action</button>
+        <button class="genre-btn" onclick="setGenre('Drama',this)">Drama</button>
+        <button class="genre-btn" onclick="setGenre('Comedy',this)">Comedy</button>
+        <button class="genre-btn" onclick="setGenre('Sci-Fi',this)">Sci-Fi</button>
+        <button class="genre-btn" onclick="setGenre('Horror',this)">Horror</button>
+        <button class="genre-btn" onclick="setGenre('Romance',this)">Romance</button>
+      </div>
+
+      <div class="grid-3" style="margin-bottom:16px;">
+        <div class="chart-card">
+          <div class="chart-title">Pyramide des Âges</div>
+          <div class="chart-sub">Répartition par tranche · Genre sélectionné</div>
+          <div id="pyramid-container" style="height:260px"></div>
+        </div>
+        <div class="chart-card" style="display:flex;flex-direction:column;align-items:center">
+          <div class="chart-title" style="align-self:flex-start">Répartition H/F</div>
+          <div class="chart-sub" style="align-self:flex-start">Par genre sélectionné</div>
+          <div style="height:220px;width:220px;position:relative;margin:0 auto">
+            <canvas id="donutChart"></canvas>
+          </div>
+          <div id="donut-legend" style="display:flex;gap:16px;font-size:12px;margin-top:8px;justify-content:center"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Top 10 Professions</div>
+          <div class="chart-sub">Activité de notation par métier</div>
+          <div class="chart-wrap" style="height:260px">
+            <canvas id="hbarChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Heatmap · Tranche d'Âge × Genre</div>
+        <div class="chart-sub">Intensité de notation croisée</div>
+        <div id="heatmap-container" style="overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE 3: STUDIO SIMULATOR ===== -->
+    <div class="page" id="page3">
+      <div class="page-header">
+        <div class="page-title">Studio <span>Simulator</span></div>
+        <div class="page-sub">TF-IDF Recommendation Engine · Pitch Analysis</div>
+      </div>
+
+      <div class="search-hero">
+        <h2>🎬 Décrivez votre Pitch</h2>
+        <p>Entrez le synopsis ou les thèmes de votre projet — l'IA trouvera les films similaires</p>
+        <div class="pitch-input-wrap">
+          <input class="pitch-input" id="pitchInput" type="text" placeholder="Ex: Un astronaute seul sur Mars doit survivre et trouver un moyen de rentrer sur Terre..." />
+          <button class="pitch-btn" onclick="runTFIDF()">ANALYSER ▶</button>
+        </div>
+      </div>
+
+      <div class="chart-card" style="margin-bottom:16px;">
+        <div class="chart-title">Recommendation Gallery <span id="rec-genre-tag" style="display:inline-block;background:rgba(229,9,20,.15);color:var(--red2);font-size:11px;padding:2px 10px;border-radius:99px;margin-left:10px;font-weight:600"></span></div>
+        <div class="chart-sub">Films similaires identifiés par le modèle TF-IDF</div>
+        <div class="rec-gallery" id="recGallery"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="chart-title">Radar — Pitch vs Moyenne Genre</div>
+          <div class="chart-sub">Comparaison des caractéristiques clés</div>
+          <div style="height:280px;display:flex;align-items:center;justify-content:center;">
+            <canvas id="radarChart" style="max-width:280px;max-height:280px;"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Score de Confiance · Modèle TF-IDF</div>
+          <div class="chart-sub">Évaluation Greenlight / Risk Assessment</div>
+          <div class="gauge-wrap">
+            <canvas id="gaugeCanvas" width="220" height="130"></canvas>
+            <div class="gauge-label" id="gaugeValue">—</div>
+            <div class="gauge-sub">Confidence Score</div>
+            <div class="gauge-verdict" id="gaugeVerdict" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE 4: MOVIE EXPLORER ===== -->
+    <div class="page" id="page4">
+      <div class="page-header">
+        <div class="page-title">Movie <span>Explorer</span></div>
+        <div class="page-sub">Analyse granulaire · Notes · Positionnement</div>
+      </div>
+
+      <div class="explorer-search">
+        <select class="movie-select" id="movieSelect" onchange="loadMovie(this.value)">
+          <option value="">— Sélectionnez un film —</option>
+        </select>
+      </div>
+
+      <div class="grid-30-70" id="explorerGrid" style="display:none;">
+        <div class="movie-fiche" id="movieFiche"></div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="chart-card">
+            <div class="chart-title">Distribution des Notes</div>
+            <div class="chart-sub">Répartition de 0.5 à 5 étoiles</div>
+            <div style="height:200px;"><canvas id="histChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Position dans le Genre</div>
+            <div class="chart-sub">Scatter plot · Budget vs Revenu</div>
+            <div style="height:200px;"><canvas id="scatterChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card" id="topUsersCard" style="margin-top:16px;display:none;">
+        <div class="chart-title">Top Utilisateurs — Notateurs</div>
+        <div class="chart-sub">Profil des utilisateurs les plus actifs sur ce film</div>
+        <table class="data-table" id="usersTable"></table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ============================================================
+// MOCK DATA
+// ============================================================
+const GENRES = ['Action','Drama','Comedy','Sci-Fi','Horror','Romance','Thriller','Animation','Crime','Fantasy'];
+
+const genreData = {
+  'Action': 1842, 'Drama': 2310, 'Comedy': 1650, 'Sci-Fi': 820,
+  'Horror': 750, 'Romance': 680, 'Thriller': 900, 'Animation': 420, 'Crime': 580, 'Fantasy': 390
+};
+
+const movies = [
+  {id:1, title:'The Matrix', emoji:'🌐', genre:'Sci-Fi', year:1999, budget:63, revenue:463, popularity:72, rating:4.2, votes:2341, synopsis:'Un programmeur découvre que sa réalité est une simulation informatique et rejoint une rébellion contre les machines.'},
+  {id:2, title:'Inception', emoji:'🌀', genre:'Sci-Fi', year:2010, budget:160, revenue:836, popularity:83, rating:4.4, votes:3102, synopsis:'Un voleur spécialisé dans l\'extraction de secrets depuis les rêves reçoit une mission impossible : implanter une idée.'},
+  {id:3, title:'The Dark Knight', emoji:'🦇', genre:'Action', year:2008, budget:185, revenue:1005, popularity:90, rating:4.5, votes:4521, synopsis:'Batman affronte le Joker, un criminel chaotique qui sème la terreur dans Gotham City.'},
+  {id:4, title:'Parasite', emoji:'🏠', genre:'Drama', year:2019, budget:11, revenue:258, popularity:78, rating:4.6, votes:2890, synopsis:'Une famille pauvre s\'infiltre progressivement dans la vie d\'une famille riche, avec des conséquences inattendues.'},
+  {id:5, title:'Interstellar', emoji:'🪐', genre:'Sci-Fi', year:2014, budget:165, revenue:701, popularity:81, rating:4.3, votes:3445, synopsis:'Des explorateurs traversent un trou de ver dans l\'espace pour assurer la survie de l\'humanité.'},
+  {id:6, title:'Get Out', emoji:'😱', genre:'Horror', year:2017, budget:4.5, revenue:255, popularity:67, rating:4.0, votes:1876, synopsis:'Un jeune Afro-Américain visite la famille de sa petite amie et découvre une réalité terrifiante.'},
+  {id:7, title:'La La Land', emoji:'🎭', genre:'Romance', year:2016, budget:30, revenue:446, popularity:74, rating:4.1, votes:2234, synopsis:'Un pianiste de jazz et une actrice aspirante tombent amoureux à Los Angeles.'},
+  {id:8, title:'The Revenant', emoji:'🐻', genre:'Action', year:2015, budget:135, revenue:533, popularity:71, rating:4.0, votes:1987, synopsis:'Un trappeur survit miraculeusement à une attaque d\'ours et poursuit sa vengeance dans la nature sauvage.'},
+  {id:9, title:'Joker', emoji:'🃏', genre:'Drama', year:2019, budget:55, revenue:1079, popularity:86, rating:4.3, votes:3780, synopsis:'L\'origine d\'Arthur Fleck, un comédien raté qui bascule dans la folie et devient le Joker.'},
+  {id:10, title:'Spirited Away', emoji:'🐲', genre:'Animation', year:2001, budget:19, revenue:395, popularity:85, rating:4.7, votes:2890, synopsis:'Une fillette se retrouve dans un monde de fantômes et d\'esprits où ses parents ont été transformés en cochons.'},
+];
+
+const professions = ['Ingénieur', 'Étudiant', 'Manager', 'Médecin', 'Enseignant', 'Designer', 'Comptable', 'Avocat', 'Chercheur', 'Entrepreneur'];
+const ageGroups = ['<18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+
+function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function seededRand(seed){let x=Math.sin(seed+1)*10000;return x-Math.floor(x);}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function goPage(n, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById('page'+n).classList.add('active');
+  el.classList.add('active');
+}
+
+// ============================================================
+// PAGE 1: MARKET INTELLIGENCE
+// ============================================================
+
+// Treemap
+function drawTreemap() {
+  const w = document.getElementById('treemap-container').clientWidth || 560;
+  const h = 280;
+  const data = {name:'root', children: Object.entries(genreData).map(([k,v])=>({name:k,value:v}))};
+  
+  const colors = ['#e50914','#3b82f6','#10b981','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
+  
+  const svg = d3.select('#treemap-container').append('svg')
+    .attr('width','100%').attr('height',h);
+  
+  const root = d3.hierarchy(data).sum(d=>d.value).sort((a,b)=>b.value-a.value);
+  d3.treemap().size([w,h]).padding(3).round(true)(root);
+  
+  const cells = svg.selectAll('g').data(root.leaves()).enter().append('g')
+    .attr('transform',d=>`translate(${d.x0},${d.y0})`);
+  
+  cells.append('rect')
+    .attr('width',d=>d.x1-d.x0).attr('height',d=>d.y1-d.y0)
+    .attr('fill',(d,i)=>colors[i%colors.length]).attr('rx',6).attr('opacity',0.85);
+  
+  cells.each(function(d){
+    const w=d.x1-d.x0, h=d.y1-d.y0;
+    if(w>60&&h>30){
+      d3.select(this).append('text').attr('x',8).attr('y',18).text(d.data.name).attr('font-size',w>100?12:10).attr('font-weight','700');
+      if(h>40) d3.select(this).append('text').attr('x',8).attr('y',34).text(d.data.value.toLocaleString()).attr('font-size',10).attr('opacity',.7);
+    }
+  });
+}
+
+// Line Chart
+function drawLineChart() {
+  const years = Array.from({length:24},(_,i)=>2000+i);
+  const revenue = years.map((_,i)=>1.2+i*0.22+Math.sin(i*0.5)*0.3);
+  const numFilms = years.map((_,i)=>280+i*18+Math.cos(i*0.4)*20);
+  
+  new Chart(document.getElementById('lineChart'), {
+    type:'line',
+    data:{
+      labels: years,
+      datasets:[
+        {label:'Revenu (Mds $)', data:revenue, borderColor:'#e50914', backgroundColor:'rgba(229,9,20,.08)', yAxisID:'y', tension:.4, fill:true, pointRadius:0, borderWidth:2},
+        {label:'Nb Films', data:numFilms, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.08)', yAxisID:'y2', tension:.4, fill:true, pointRadius:0, borderWidth:2}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{legend:{labels:{color:'#9ca3af',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#6b7280',font:{size:10}},grid:{color:'rgba(255,255,255,.03)'}},
+        y:{position:'left',ticks:{color:'#e50914',font:{size:10}},grid:{color:'rgba(255,255,255,.03)'},title:{display:true,text:'Revenu',color:'#e50914',font:{size:10}}},
+        y2:{position:'right',ticks:{color:'#3b82f6',font:{size:10}},grid:{display:false},title:{display:true,text:'Films',color:'#3b82f6',font:{size:10}}}
+      }
+    }
+  });
+}
+
+// Bubble Chart
+function drawBubbleChart() {
+  const data = movies.map(m=>({x:m.budget, y:m.revenue, r:Math.sqrt(m.popularity)*1.5, label:m.title}));
+  const colors = movies.map(m=>m.roi>200?'rgba(16,185,129,.7)':'rgba(229,9,20,.7)');
+  
+  new Chart(document.getElementById('bubbleChart'), {
+    type:'bubble',
+    data:{datasets:[{label:'Films', data, backgroundColor:movies.map(m=>
+      m.revenue/m.budget>4?'rgba(16,185,129,.65)':m.revenue/m.budget>2?'rgba(59,130,246,.65)':'rgba(229,9,20,.65)'
+    ), borderColor:'transparent'}]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:d=>`${movies[d.dataIndex].title} · $${d.raw.y}M`}}
+      },
+      scales:{
+        x:{title:{display:true,text:'Budget ($M)',color:'#6b7280'},ticks:{color:'#6b7280'},grid:{color:'rgba(255,255,255,.03)'}},
+        y:{title:{display:true,text:'Revenu ($M)',color:'#6b7280'},ticks:{color:'#6b7280'},grid:{color:'rgba(255,255,255,.03)'}}
+      }
+    }
+  });
+}
+
+// ============================================================
+// PAGE 2: AUDIENCE PROFILING
+// ============================================================
+let donutInstance=null, pyramidSvg=null, hbarInstance=null;
+
+function setGenre(g, el) {
+  document.querySelectorAll('.genre-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  drawAudience(g);
+}
+
+function drawAudience(genre) {
+  drawPyramid(genre);
+  drawDonut(genre);
+  drawHbar(genre);
+}
+
+function drawPyramid(genre) {
+  const container = document.getElementById('pyramid-container');
+  container.innerHTML='';
+  const w=container.clientWidth||320, h=260;
+  const seed = genre==='all'?1:GENRES.indexOf(genre)+2;
+  
+  const maleData = ageGroups.map((_,i)=>Math.floor(seededRand(seed*10+i)*300+50));
+  const femaleData = ageGroups.map((_,i)=>Math.floor(seededRand(seed*10+i+7)*280+40));
+  const maxVal = Math.max(...maleData,...femaleData);
+  
+  const svg = d3.select('#pyramid-container').append('svg').attr('width','100%').attr('height',h);
+  const barH=28, gap=6, startY=10, labelW=46, barMaxW=(w-labelW-20)/2;
+  
+  ageGroups.forEach((ag,i)=>{
+    const y=startY+i*(barH+gap);
+    const mw=maleData[i]/maxVal*barMaxW;
+    const fw=femaleData[i]/maxVal*barMaxW;
+    const cx=w/2;
+    
+    // Male bar (left)
+    svg.append('rect').attr('x',cx-labelW/2-mw).attr('y',y).attr('width',mw).attr('height',barH)
+      .attr('fill','#3b82f6').attr('rx',4).attr('opacity',.8);
+    // Female bar (right)
+    svg.append('rect').attr('x',cx+labelW/2).attr('y',y).attr('width',fw).attr('height',barH)
+      .attr('fill','#ec4899').attr('rx',4).attr('opacity',.8);
+    // Label
+    svg.append('text').attr('x',cx).attr('y',y+barH/2+5).attr('text-anchor','middle')
+      .text(ag).attr('fill','#9ca3af').attr('font-size',11);
+  });
+}
+
+function drawDonut(genre) {
+  if(donutInstance){donutInstance.destroy();donutInstance=null;}
+  const seed=genre==='all'?1:GENRES.indexOf(genre)+2;
+  const male=Math.floor(seededRand(seed*3)*40+35);
+  const female=100-male;
+  
+  donutInstance=new Chart(document.getElementById('donutChart'),{
+    type:'doughnut',
+    data:{labels:['Homme','Femme'],datasets:[{data:[male,female],backgroundColor:['#3b82f6','#ec4899'],borderColor:'transparent',hoverOffset:6}]},
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'72%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:d=>`${d.label}: ${d.raw}%`}}}
+    }
+  });
+  document.getElementById('donut-legend').innerHTML=`
+    <span style="color:#3b82f6">● Homme ${male}%</span>
+    <span style="color:#ec4899">● Femme ${female}%</span>`;
+}
+
+function drawHbar(genre) {
+  if(hbarInstance){hbarInstance.destroy();hbarInstance=null;}
+  const seed=genre==='all'?1:GENRES.indexOf(genre)+2;
+  const vals=professions.map((_,i)=>Math.floor(seededRand(seed*5+i)*800+200));
+  const sorted=[...vals].sort((a,b)=>b-a);
+  const sortedProf=[...professions].sort((_,i)=>vals[i]-vals[i+1]||0);
+  // reorder by value desc
+  const pairs=professions.map((p,i)=>({p,v:vals[i]})).sort((a,b)=>b.v-a.v);
+  
+  hbarInstance=new Chart(document.getElementById('hbarChart'),{
+    type:'bar',
+    data:{
+      labels:pairs.map(x=>x.p),
+      datasets:[{data:pairs.map(x=>x.v),backgroundColor:pairs.map((_,i)=>`hsla(${200+i*15},70%,${55-i*2}%,0.8)`),borderRadius:4}]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#6b7280',font:{size:10}},grid:{color:'rgba(255,255,255,.03)'}},
+        y:{ticks:{color:'#9ca3af',font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+function drawHeatmap() {
+  const container=document.getElementById('heatmap-container');
+  const genres=GENRES;
+  const w=container.clientWidth||700, cellW=58, cellH=36;
+  const svgW=cellW*genres.length+90, svgH=cellH*ageGroups.length+50;
+  
+  const maxVal=5;
+  const colorScale=d3.scaleSequential().domain([0,5])
+    .interpolator(d3.interpolateRgb('#1c1c2a','#3b82f6'));
+  
+  const svg=d3.select('#heatmap-container').append('svg')
+    .attr('width',svgW).attr('height',svgH);
+  
+  // Genre labels (top)
+  genres.forEach((g,j)=>{
+    svg.append('text').attr('x',90+j*cellW+cellW/2).attr('y',30).attr('text-anchor','middle')
+      .text(g).attr('fill','#6b7280').attr('font-size',10).attr('font-weight','600');
+  });
+  
+  ageGroups.forEach((ag,i)=>{
+    svg.append('text').attr('x',82).attr('y',50+i*cellH+cellH/2+4).attr('text-anchor','end')
+      .text(ag).attr('fill','#6b7280').attr('font-size',11);
+    
+    genres.forEach((g,j)=>{
+      const val=(2.5+seededRand(i*17+j*13)*2.5).toFixed(1);
+      const rect=svg.append('rect')
+        .attr('x',90+j*cellW+2).attr('y',40+i*cellH+2)
+        .attr('width',cellW-4).attr('height',cellH-4)
+        .attr('fill',colorScale(+val)).attr('rx',5);
+      
+      svg.append('text').attr('x',90+j*cellW+cellW/2).attr('y',40+i*cellH+cellH/2+5)
+        .attr('text-anchor','middle').text(val)
+        .attr('fill',+val>3.5?'#fff':'#9ca3af').attr('font-size',11).attr('font-weight','600');
+    });
+  });
+}
+
+// ============================================================
+// PAGE 3: STUDIO SIMULATOR
+// ============================================================
+let radarInstance=null;
+
+const pitchExamples = {
+  'space': {genre:'Sci-Fi', films:[1,4,2,3,0]},
+  'crime': {genre:'Thriller', films:[2,1,4,0,3]},
+  'love': {genre:'Romance', films:[6,1,0,2,4]},
+  'default': {genre:'Drama', films:[0,1,2,3,4]}
+};
+
+function runTFIDF() {
+  const pitch = document.getElementById('pitchInput').value.toLowerCase();
+  let key='default';
+  if(pitch.includes('espace')||pitch.includes('astro')||pitch.includes('mars')||pitch.includes('space')) key='space';
+  else if(pitch.includes('crime')||pitch.includes('meurtre')||pitch.includes('police')) key='crime';
+  else if(pitch.includes('amour')||pitch.includes('love')||pitch.includes('romance')) key='love';
+  
+  const result = pitchExamples[key];
+  const conf = 0.65+Math.random()*0.3;
+  
+  // Build gallery
+  const gallery=document.getElementById('recGallery');
+  gallery.innerHTML='';
+  document.getElementById('rec-genre-tag').textContent=result.genre;
+  
+  result.films.forEach((idx,rank)=>{
+    const m=movies[idx];
+    const sim=(0.95-rank*0.08+Math.random()*0.03).toFixed(2);
+    gallery.innerHTML+=`<div class="rec-card">
+      <div class="rec-poster-bg" style="background:linear-gradient(135deg,${['#1a1a2e','#16213e','#0f3460','#1a0a2e','#2a1a0e'][rank%5]},#1c1c2a)">${m.emoji}</div>
+      <div class="rec-info">
+        <div class="rec-title">${m.title}</div>
+        <div class="rec-score">Similarité: ${(sim*100).toFixed(0)}%</div>
+        <div class="rec-genre-tag">${m.genre}</div>
+        <div class="similarity-bar"><div class="similarity-fill" style="width:${sim*100}%"></div></div>
+      </div>
+    </div>`;
+  });
+  
+  // Radar
+  drawRadar(result.genre, conf);
+  drawGauge(conf);
+}
+
+function drawRadar(genre, conf) {
+  if(radarInstance){radarInstance.destroy();radarInstance=null;}
+  const labels=['Action','Émotion','Complexité','Originalité','Budget','Audience'];
+  const pitch=labels.map(()=>Math.floor(Math.random()*4+5));
+  const avg=labels.map(()=>Math.floor(Math.random()*3+4));
+  
+  radarInstance=new Chart(document.getElementById('radarChart'),{
+    type:'radar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Votre Pitch',data:pitch,borderColor:'#e50914',backgroundColor:'rgba(229,9,20,.15)',pointBackgroundColor:'#e50914',borderWidth:2},
+        {label:`Moy. ${genre}`,data:avg,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.1)',pointBackgroundColor:'#3b82f6',borderWidth:2}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#9ca3af',font:{size:11}}}},
+      scales:{r:{angleLines:{color:'rgba(255,255,255,.07)'},grid:{color:'rgba(255,255,255,.07)'},ticks:{display:false},pointLabels:{color:'#9ca3af',font:{size:10}}}}
+    }
+  });
+}
+
+function drawGauge(conf) {
+  const canvas=document.getElementById('gaugeCanvas');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  
+  const cx=canvas.width/2, cy=canvas.height-10, r=90;
+  const startAngle=Math.PI, endAngle=2*Math.PI;
+  
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(cx,cy,r,startAngle,endAngle);
+  ctx.lineWidth=18;
+  ctx.strokeStyle='#2a2a3a';
+  ctx.lineCap='round';
+  ctx.stroke();
+  
+  // Color: green>0.75, orange>0.5, red
+  const color = conf>0.75?'#10b981':conf>0.5?'#f59e0b':'#e50914';
+  ctx.beginPath();
+  ctx.arc(cx,cy,r,startAngle,startAngle+(endAngle-startAngle)*conf);
+  ctx.lineWidth=18;
+  ctx.strokeStyle=color;
+  ctx.lineCap='round';
+  ctx.stroke();
+  
+  document.getElementById('gaugeValue').textContent=`${(conf*100).toFixed(0)}%`;
+  document.getElementById('gaugeValue').style.color=color;
+  const verdict=document.getElementById('gaugeVerdict');
+  verdict.style.display='block';
+  verdict.className='gauge-verdict '+(conf>0.75?'green':conf>0.5?'orange':'red');
+  verdict.textContent=conf>0.75?'✅ GREENLIGHT':conf>0.5?'⚠️ REVIEW NEEDED':'❌ HIGH RISK';
+}
+
+// ============================================================
+// PAGE 4: MOVIE EXPLORER
+// ============================================================
+let histInstance=null, scatterInstance=null;
+
+function initExplorer() {
+  const sel=document.getElementById('movieSelect');
+  movies.forEach(m=>{
+    sel.innerHTML+=`<option value="${m.id}">${m.emoji} ${m.title} (${m.year})</option>`;
+  });
+}
+
+function loadMovie(id) {
+  if(!id) return;
+  const m=movies.find(x=>x.id==id);
+  if(!m) return;
+  
+  document.getElementById('explorerGrid').style.display='grid';
+  document.getElementById('topUsersCard').style.display='block';
+  
+  // Fiche
+  document.getElementById('movieFiche').innerHTML=`
+    <div class="movie-poster-big" style="background:linear-gradient(135deg,#1a1a2e,#1c1c2a)">${m.emoji}</div>
+    <div class="movie-meta-title">${m.title}</div>
+    <div class="tag-row">
+      <span class="tag red">${m.genre}</span>
+      <span class="tag">${m.year}</span>
+      <span class="tag">⭐ ${m.rating}</span>
+    </div>
+    <div class="synopsis">${m.synopsis}</div>
+    <div>
+      <div class="stat-row"><span class="stat-label">Budget</span><span class="stat-val">$${m.budget}M</span></div>
+      <div class="stat-row"><span class="stat-label">Revenu</span><span class="stat-val">$${m.revenue}M</span></div>
+      <div class="stat-row"><span class="stat-label">ROI</span><span class="stat-val">${((m.revenue/m.budget-1)*100).toFixed(0)}%</span></div>
+      <div class="stat-row"><span class="stat-label">Popularité</span><span class="stat-val">${m.popularity}/100</span></div>
+      <div class="stat-row"><span class="stat-label">Votes</span><span class="stat-val">${m.votes.toLocaleString()}</span></div>
+    </div>
+  `;
+  
+  // Histogram
+  if(histInstance){histInstance.destroy();}
+  const ratingBins=['0.5','1','1.5','2','2.5','3','3.5','4','4.5','5'];
+  const ratingCounts=ratingBins.map((_,i)=>{
+    const center=i/10;
+    const peak=(m.rating-0.5)/0.5;
+    return Math.floor(Math.exp(-Math.pow(i-peak*9,2)/8)*m.votes/3+Math.random()*30);
+  });
+  histInstance=new Chart(document.getElementById('histChart'),{
+    type:'bar',
+    data:{labels:ratingBins,datasets:[{data:ratingCounts,backgroundColor:ratingBins.map((v)=>+v>=m.rating-0.3&&+v<=m.rating+0.3?'#e50914':'rgba(59,130,246,0.5)'),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#6b7280',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#6b7280',font:{size:10}},grid:{color:'rgba(255,255,255,.03)'}}}}
+  });
+  
+  // Scatter
+  if(scatterInstance){scatterInstance.destroy();}
+  const sameGenre=movies.filter(x=>x.genre===m.genre&&x.id!==m.id);
+  scatterInstance=new Chart(document.getElementById('scatterChart'),{
+    type:'scatter',
+    data:{datasets:[
+      {label:'Même Genre',data:sameGenre.map(x=>({x:x.budget,y:x.revenue})),backgroundColor:'rgba(59,130,246,.5)',pointRadius:6},
+      {label:m.title,data:[{x:m.budget,y:m.revenue}],backgroundColor:'#e50914',pointRadius:10,pointStyle:'star'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9ca3af',font:{size:10}}}},scales:{x:{title:{display:true,text:'Budget($M)',color:'#6b7280'},ticks:{color:'#6b7280'},grid:{color:'rgba(255,255,255,.03)'}},y:{title:{display:true,text:'Revenu($M)',color:'#6b7280'},ticks:{color:'#6b7280'},grid:{color:'rgba(255,255,255,.03)'}}}}
+  });
+  
+  // Top users table
+  const users = Array.from({length:8},(_,i)=>({
+    rank:i+1,
+    name:['Alex D.','Marie C.','Tom B.','Lena R.','Hugo M.','Fatima K.','Louis P.','Nina S.'][i],
+    age:[28,34,22,45,31,26,53,38][i],
+    job:professions[i%professions.length],
+    rating:(3.5+Math.random()*1.5).toFixed(1),
+    reviews:randInt(50,500)
+  }));
+  
+  let tableHTML=`<thead><tr>
+    <th>#</th><th>Utilisateur</th><th>Âge</th><th>Profession</th><th>Note donnée</th><th>Total Reviews</th>
+  </tr></thead><tbody>`;
+  users.forEach(u=>{
+    tableHTML+=`<tr>
+      <td><span class="rank-badge ${u.rank<=3?'gold':''}">${u.rank}</span></td>
+      <td><strong>${u.name}</strong></td>
+      <td>${u.age} ans</td>
+      <td>${u.job}</td>
+      <td><span class="rating-stars">${'★'.repeat(Math.round(u.rating))}${'☆'.repeat(5-Math.round(u.rating))}</span> ${u.rating}</td>
+      <td style="color:var(--muted)">${u.reviews}</td>
+    </tr>`;
+  });
+  tableHTML+='</tbody>';
+  document.getElementById('usersTable').innerHTML=tableHTML;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    drawTreemap();
+    drawLineChart();
+    drawBubbleChart();
+    
+    drawAudience('all');
+    setTimeout(drawHeatmap, 100);
+    
+    initExplorer();
+    
+    // Pre-load gallery with default
+    document.getElementById('pitchInput').value='Un astronaute seul sur Mars doit survivre et trouver un moyen de rentrer sur Terre...';
+    runTFIDF();
+  }, 100);
+});
+</script>
+</body>
+</html>
