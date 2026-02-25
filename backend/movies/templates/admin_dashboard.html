@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineMetrics — Admin Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --card: #161620;
+    --card2: #1c1c2a;
+    --border: #2a2a3a;
+    --red: #e50914;
+    --red2: #ff3040;
+    --anthracite: #1e1e2e;
+    --blue: #3b82f6;
+    --green: #10b981;
+    --orange: #f59e0b;
+    --purple: #8b5cf6;
+    --text: #f0f0f5;
+    --muted: #6b7280;
+    --accent: #e50914;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+  
+  .shell { display:flex; min-height:100vh; }
+  .sidebar { width:240px; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; height:100vh; z-index:100; }
+  .main { margin-left:240px; flex:1; padding:32px; min-height:100vh; }
+
+  .logo { padding:28px 24px 20px; border-bottom:1px solid var(--border); }
+  .logo-text { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; letter-spacing:0.05em; }
+  .logo-text span { color:var(--red); }
+  .logo-sub { color:var(--muted); font-size:11px; letter-spacing:0.15em; text-transform:uppercase; margin-top:2px; }
+  .nav { padding:20px 12px; flex:1; }
+  .nav-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:10px; cursor:pointer; color:var(--muted); font-size:14px; font-weight:500; transition:all .2s; margin-bottom:4px; text-decoration:none; }
+  .nav-item:hover { background:var(--card); color:var(--text); }
+  .nav-item.active { background:rgba(229,9,20,.12); color:var(--red2); border:1px solid rgba(229,9,20,.2); }
+  .nav-icon { font-size:18px; width:22px; text-align:center; }
+  .sidebar-footer { padding:20px 24px; border-top:1px solid var(--border); }
+  .status-dot { width:8px; height:8px; background:#10b981; border-radius:50%; display:inline-block; margin-right:8px; box-shadow:0 0 6px #10b981; }
+
+  .page { animation:fadeUp .3s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  .page-header { margin-bottom:28px; }
+  .page-title { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; }
+  .page-title span { color:var(--red); }
+  .page-sub { color:var(--muted); font-size:14px; margin-top:4px; }
+
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+  .kpi-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px 22px; position:relative; overflow:hidden; transition:transform .2s; }
+  .kpi-card:hover { transform:translateY(-2px); }
+  .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+  .kpi-card:nth-child(1)::before { background:linear-gradient(90deg,var(--red),var(--red2)); }
+  .kpi-card:nth-child(2)::before { background:linear-gradient(90deg,var(--blue),#60a5fa); }
+  .kpi-card:nth-child(3)::before { background:linear-gradient(90deg,var(--green),#34d399); }
+  .kpi-card:nth-child(4)::before { background:linear-gradient(90deg,var(--purple),#a78bfa); }
+  .kpi-label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.1em; margin-bottom:8px; }
+  .kpi-value { font-family:'Syne',sans-serif; font-size:30px; font-weight:800; }
+  .kpi-delta { font-size:12px; margin-top:6px; }
+  .kpi-delta.up { color:var(--green); }
+  .kpi-icon { position:absolute; top:18px; right:20px; font-size:28px; opacity:.15; }
+
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+
+  .chart-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px; }
+  .chart-title { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; margin-bottom:4px; }
+  .chart-sub { color:var(--muted); font-size:12px; margin-bottom:18px; }
+  .chart-wrap { position:relative; }
+
+  .data-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .data-table th { text-align:left; padding:10px 14px; color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid var(--border); }
+  .data-table td { padding:11px 14px; border-bottom:1px solid rgba(42,42,58,.5); }
+  .data-table tr:hover td { background:rgba(255,255,255,.02); }
+
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+
+  @media(max-width:1200px) {
+    .kpi-row { grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-text">CINE<span>METRICS</span></div>
+      <div class="logo-sub">Admin Dashboard</div>
+    </div>
+    <div class="nav">
+      <a href="{% url 'admin_dashboard' %}" class="nav-item active"><span class="nav-icon">📈</span> Dashboard Overview</a>
+      <a href="{% url 'index' %}" class="nav-item"><span class="nav-icon">🏠</span> Back to Site</a>
+      <a href="{% url 'admin:index' %}" class="nav-item"><span class="nav-icon">⚙️</span> Django Admin</a>
+    </div>
+    <div class="sidebar-footer">
+      <div style="font-size:12px;color:var(--muted)"><span class="status-dot"></span>Admin: {{ user.username }}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Role: {{ user.role|upper }}</div>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="page">
+      <div class="page-header">
+        <div class="page-title">Dashboard <span>Overview</span></div>
+        <div class="page-sub">System statistics · User metrics · Content analytics</div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Films</div>
+          <div class="kpi-value">{{ total_films|default:0 }}</div>
+          <div class="kpi-delta up">▲ Database loaded</div>
+          <div class="kpi-icon">🎬</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Users</div>
+          <div class="kpi-value">{{ total_users|default:0 }}</div>
+          <div class="kpi-delta up">▲ Active system</div>
+          <div class="kpi-icon">👥</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Admin Users</div>
+          <div class="kpi-value">{{ admin_users|default:0 }}</div>
+          <div class="kpi-delta up">▲ Access level</div>
+          <div class="kpi-icon">👨‍💼</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Regular Users</div>
+          <div class="kpi-value">{{ regular_users|default:0 }}</div>
+          <div class="kpi-delta up">▲ Community</div>
+          <div class="kpi-icon">⭐</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="chart-title">Genre Distribution</div>
+          <div class="chart-sub">Films by genre category</div>
+          <div id="treemap-container"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Genre Statistics</div>
+          <div class="chart-sub">Top genres by count</div>
+          <div class="chart-wrap" style="height:280px">
+            <canvas id="genreChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Recent Movies</div>
+        <div class="chart-sub">Latest entries in the database</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Genres</th>
+              <th>Year</th>
+            </tr>
+          </thead>
+          <tbody id="moviesTable">
+            {% for movie in movies %}
+            <tr>
+              <td><strong>{{ movie.title }}</strong></td>
+              <td>{{ movie.genres }}</td>
+              <td>{{ movie.year|default:"N/A" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="3" style="text-align:center;color:var(--muted);">No movies found</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const genresData = {{ genres_count_json|safe }};
+
+function drawTreemap() {
+  const w = document.getElementById('treemap-container').clientWidth || 560;
+  const h = 280;
+  
+  const entries = Object.entries(genresData).map(([k,v])=>({name:k,value:v}));
+  const data = {name:'root', children: entries};
+  
+  const colors = ['#e50914','#3b82f6','#10b981','#8b5cf6','#f59e0b','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
+  
+  const svg = d3.select('#treemap-container').append('svg')
+    .attr('width','100%').attr('height',h);
+  
+  const root = d3.hierarchy(data).sum(d=>d.value).sort((a,b)=>b.value-a.value);
+  d3.treemap().size([w,h]).padding(3).round(true)(root);
+  
+  const cells = svg.selectAll('g').data(root.leaves()).enter().append('g')
+    .attr('transform',d=>`translate(${d.x0},${d.y0})`);
+  
+  cells.append('rect')
+    .attr('width',d=>d.x1-d.x0).attr('height',d=>d.y1-d.y0)
+    .attr('fill',(d,i)=>colors[i%colors.length]).attr('rx',6).attr('opacity',0.85);
+  
+  cells.each(function(d){
+    const w=d.x1-d.x0, h=d.y1-d.y0;
+    if(w>60&&h>30){
+      d3.select(this).append('text').attr('x',8).attr('y',18).text(d.data.name).attr('font-size',w>100?12:10).attr('font-weight','700').attr('fill','#fff');
+      if(h>40) d3.select(this).append('text').attr('x',8).attr('y',34).text(d.data.value.toLocaleString()).attr('font-size',10).attr('opacity',.7).attr('fill','#fff');
+    }
+  });
+}
+
+function drawGenreChart() {
+  const entries = Object.entries(genresData).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const labels = entries.map(x=>x[0]);
+  const values = entries.map(x=>x[1]);
+  
+  new Chart(document.getElementById('genreChart'), {
+    type:'bar',
+    data:{
+      labels: labels,
+      datasets:[{
+        label:'Film Count',
+        data:values,
+        backgroundColor:'rgba(229,9,20,.7)',
+        borderColor:'#e50914',
+        borderWidth:1,
+        borderRadius:6
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#6b7280',font:{size:10}},grid:{color:'rgba(255,255,255,.03)'}},
+        y:{ticks:{color:'#9ca3af',font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    drawTreemap();
+    drawGenreChart();
+  }, 100);
+});
+</script>
+</body>
+</html>

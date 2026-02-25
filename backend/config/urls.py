@@ -27,4 +27,6 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('user-recommendations/', views.user_recommendations, name='user_recommendations'),
     path('movie/<str:movie_id>/', views.movie_detail, name='movie_detail'),
+    path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('dashboard/api/', views.admin_dashboard_api, name='admin_dashboard_api'),
 ]

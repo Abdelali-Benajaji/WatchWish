@@ -1,59 +1,78 @@
-# Movies App - MongoDB Integration
+# Admin Dashboard
 
-This app uses PyMongo to interact with MongoDB for storing and managing movie data, while Django auth/admin uses SQLite.
+## Overview
+The admin dashboard provides administrative users with comprehensive analytics and management capabilities for the WatchWish movie recommendation platform.
 
-## Architecture
+## Features
 
-- **Django Auth/Admin**: Uses SQLite (db.sqlite3)
-- **Movies Data**: Uses MongoDB via PyMongo
-- **Database Connection**: Direct PyMongo connection (no ORM)
+### Role-Based Access Control
+- Users have a `role` field: 'user' or 'admin'
+- Only users with 'admin' role can access the dashboard
+- Admin users see a "Dashboard" link in the navigation bar
 
-## Files
+### Dashboard Analytics
+The admin dashboard displays:
+- **Total Films**: Number of movies in the database
+- **Total Users**: All registered users
+- **Admin Users**: Count of admin-level users
+- **Regular Users**: Count of standard users
+- **Genre Distribution**: Visual treemap showing film distribution across genres
+- **Genre Statistics**: Bar chart of top genres by count
+- **Recent Movies**: Table of latest movie entries
 
-- `db.py`: MongoDB connection utilities
-- `services.py`: MovieService class with CRUD operations
-- `views.py`: API endpoints for movie operations
-- `urls.py`: URL routing for movie endpoints
+## Setup Instructions
 
-## Configuration
+### 1. Run Migrations
+First, create and apply migrations for the custom User model:
 
-MongoDB settings are configured in `backend/config/settings.py`:
-
-```python
-MONGODB_SETTINGS = {
-    'host': 'localhost',
-    'port': 27017,
-    'db_name': 'watchwish_db',
-    'username': '',  # optional
-    'password': '',  # optional
-}
+```bash
+python backend/manage.py makemigrations
+python backend/manage.py migrate
 ```
 
-These can be overridden using environment variables:
-- `MONGODB_HOST`
-- `MONGODB_PORT`
-- `MONGODB_DB_NAME`
-- `MONGODB_USERNAME`
-- `MONGODB_PASSWORD`
+### 2. Seed Admin User
+Use the management command to create an admin user:
+
+```bash
+python backend/manage.py seed_admin
+```
+
+This creates an admin user with:
+- **Username**: admin
+- **Email**: admin@watchwish.com
+- **Password**: admin123
+- **Role**: admin
+
+### 3. Access the Dashboard
+1. Start the development server:
+   ```bash
+   python backend/manage.py runserver
+   ```
+
+2. Navigate to http://localhost:8000/accounts/login/
+
+3. Login with the admin credentials
+
+4. Click on "Dashboard" in the navigation bar or visit http://localhost:8000/dashboard/
 
 ## API Endpoints
 
-- `GET /api/movies/` - List movies (supports ?limit, ?skip, ?genre, ?search)
-- `POST /api/movies/create/` - Create a movie
-- `GET /api/movies/<movie_id>/` - Get a specific movie
-- `PUT /api/movies/<movie_id>/update/` - Update a movie
-- `DELETE /api/movies/<movie_id>/delete/` - Delete a movie
+### Dashboard API
+- **URL**: `/dashboard/api/?endpoint=stats`
+- **Method**: GET
+- **Auth**: Admin role required
+- **Response**: JSON with film and user statistics
 
-## Movie Document Structure
+## Design
+The dashboard is inspired by the CineMetrics design from `cinema_dashboard.html`, featuring:
+- Dark theme with cinematic styling
+- Sidebar navigation
+- KPI cards with gradients
+- Interactive D3.js treemap visualization
+- Chart.js bar charts
+- Responsive grid layout
 
-```json
-{
-    "_id": "ObjectId",
-    "title": "Movie Title",
-    "description": "Movie description",
-    "genre": "Action",
-    "release_year": 2024,
-    "rating": 8.5,
-    ...
-}
-```
+## Security
+- Access control via `@admin_required` decorator
+- Users without admin role are redirected to home page
+- Authentication required for all dashboard routes

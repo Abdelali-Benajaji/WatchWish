@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WatchWish Studio — Tableau de Bord d'Intelligence Cinématographique</title>
+    <meta name="description"
+        content="WatchWish Studio : Intelligence d'affaires pour l'industrie du cinéma alimentée par l'IA, prédiction d'audience et analyses de ROI.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ─── Sidebar ──────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 32 32" fill="none">
+                    <circle cx="16" cy="16" r="14" stroke="url(#lg)" stroke-width="2.5" />
+                    <path d="M12 10l10 6-10 6V10z" fill="url(#lg)" />
+                    <defs>
+                        <linearGradient id="lg" x1="0" y1="0" x2="32" y2="32">
+                            <stop stop-color="#a855f7" />
+                            <stop offset="1" stop-color="#06b6d4" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <span class="logo-text">WatchWish</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="dashboard" data-tooltip="Tableau de bord">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Tableau de bord</span>
+            </a>
+            <a href="#" class="nav-item" data-page="audience" data-tooltip="Audience">
+                <i data-lucide="users"></i>
+                <span>Audience</span>
+            </a>
+            <a href="#" class="nav-item" data-tooltip="Simulateur">
+                <i data-lucide="clapperboard"></i>
+                <span>Simulateur</span>
+            </a>
+            <a href="#" class="nav-item" data-tooltip="Statistiques">
+                <i data-lucide="bar-chart-3"></i>
+                <span>Statistiques</span>
+            </a>
+            <a href="#" class="nav-item" data-tooltip="Campagnes">
+                <i data-lucide="megaphone"></i>
+                <span>Campagnes</span>
+            </a>
+            <a href="#" class="nav-item" data-tooltip="Rapports">
+                <i data-lucide="file-text"></i>
+                <span>Rapports</span>
+            </a>
+            <a href="#" class="nav-item" data-tooltip="Paramètres">
+                <i data-lucide="settings"></i>
+                <span>Paramètres</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-avatar">MN</div>
+            <div class="user-info">
+                <span class="user-name">M. Nahri</span>
+                <span class="user-role">Analyste Studio</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ─── Main Content ─────────────────────────────────────── -->
+    <main class="main">
+
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <h1 class="page-title">Tableau de bord</h1>
+                <span class="page-subtitle">Aperçu de l'intelligence cinématographique</span>
+            </div>
+            <div class="topbar-right">
+                <div class="search-box">
+                    <i data-lucide="search"></i>
+                    <input type="text" placeholder="Rechercher des films, studios..." id="globalSearch">
+                </div>
+                <button class="icon-btn" id="notifBtn"><i data-lucide="bell"></i><span
+                        class="notif-dot"></span></button>
+                <button class="icon-btn" id="themeBtn"><i data-lucide="moon"></i></button>
+            </div>
+        </header>
+
+        <!-- View Containers -->
+        <div id="dashboardView" class="view-content">
+            <!-- KPI Strip -->
+            <section class="kpi-strip">
+                <div class="kpi-card">
+                    <div class="kpi-icon purple"><i data-lucide="film"></i></div>
+                    <div class="kpi-body">
+                        <span class="kpi-value kpi-movies">…</span>
+                        <span class="kpi-label">Films suivis</span>
+                    </div>
+                    <span class="kpi-trend up">27k Films</span>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon blue"><i data-lucide="dollar-sign"></i></div>
+                    <div class="kpi-body">
+                        <span class="kpi-value kpi-revenue">…</span>
+                        <span class="kpi-label">Box-office total</span>
+                    </div>
+                    <span class="kpi-trend up">Données Réelles</span>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon cyan"><i data-lucide="trending-up"></i></div>
+                    <div class="kpi-body">
+                        <span class="kpi-value kpi-roi">…</span>
+                        <span class="kpi-label">ROI moyen</span>
+                    </div>
+                    <span class="kpi-trend up">Finances 27k</span>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon pink"><i data-lucide="star"></i></div>
+                    <div class="kpi-body">
+                        <span class="kpi-value kpi-rating">…</span>
+                        <span class="kpi-label">Note TMDB moy.</span>
+                    </div>
+                    <span class="kpi-trend up">Communauté</span>
+                </div>
+            </section>
+
+            <!-- Dashboard Grid -->
+            <section class="dashboard-grid">
+
+                <!-- Studio Simulator -->
+                <div class="card card-simulator" id="simulatorCard">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="sparkles" class="card-icon"></i>
+                            <h2>Simulateur de Studio</h2>
+                        </div>
+                        <span class="badge badge-ai">Propulsé par l'IA</span>
+                    </div>
+                    <p class="card-desc">Pitcher votre idée de film et obtenez instantanément la viabilité du marché,
+                        les
+                        prédictions d'audience et les estimations de ROI.</p>
+                    <div class="simulator-input-wrap">
+                        <textarea id="pitchInput"
+                            placeholder="Décrivez votre pitch de film...&#10;&#10;Exemple : Un thriller de science-fiction se déroulant en 2087 où un détective IA doit résoudre des crimes dans une ville où humains et androïdes coexistent."
+                            rows="5"></textarea>
+                        <div class="simulator-actions">
+                            <div class="sim-controls">
+                                <select id="genreSelect">
+                                    <option value="sci-fi">Science-fiction</option>
+                                    <option value="action">Action</option>
+                                    <option value="drama">Drame</option>
+                                    <option value="comedy">Comédie</option>
+                                    <option value="horror">Horreur</option>
+                                    <option value="animation">Animation</option>
+                                </select>
+                                <select id="budgetSelect">
+                                    <option value="low">$10-50M</option>
+                                    <option value="mid" selected>$50-150M</option>
+                                    <option value="high">$150M+</option>
+                                </select>
+                            </div>
+                            <button class="btn-primary" id="analyzePitchBtn">
+                                <i data-lucide="zap"></i>
+                                Analyser le Pitch
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Simulator Result (hidden initially) -->
+                    <div class="sim-result hidden" id="simResult">
+                        <div class="sim-result-header">
+                            <span class="sim-result-title">Résultat de l'analyse IA</span>
+                            <span class="sim-score">Viabilité : <strong>87%</strong></span>
+                        </div>
+                        <span class="sim-genre-badge badge badge-ai"
+                            style="display:inline-block;margin-bottom:12px;">Genre
+                            prédit : Science-fiction</span>
+                        <div class="sim-result-metrics">
+                            <div class="sim-metric">
+                                <span class="sim-metric-label">Box-office est.</span>
+                                <span class="sim-metric-value">$340M</span>
+                            </div>
+                            <div class="sim-metric">
+                                <span class="sim-metric-label">Projection ROI</span>
+                                <span class="sim-metric-value">2.8x</span>
+                            </div>
+                            <div class="sim-metric">
+                                <span class="sim-metric-label">Niveau de risque</span>
+                                <span class="sim-metric-value caution">Moyen</span>
+                            </div>
+                        </div>
+                        <!-- Similar films from TF-IDF -->
+                        <div class="sim-films-section hidden" id="simFilmsSection">
+                            <div class="sim-films-label">Films les plus similaires (TF-IDF)</div>
+                            <div class="sim-films-list" id="simFilms"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ROI vs Budget Bar Chart -->
+                <div class="card card-chart" id="roiChartCard">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="bar-chart-3" class="card-icon"></i>
+                            <h2>ROI vs Budget de Production</h2>
+                        </div>
+                        <div class="chart-controls">
+                            <button class="chip active" data-view="bar">Barres</button>
+                            <button class="chip" data-view="scatter">Nuage</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrap">
+                        <canvas id="roiBarChart"></canvas>
+                        <canvas id="roiScatterChart" class="hidden"></canvas>
+                    </div>
+                </div>
+
+                <!-- Predictive Audience (Quick Look) -->
+                <div class="card card-audience-mini">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="target" class="card-icon"></i>
+                            <h2>Aperçu Audience</h2>
+                        </div>
+                    </div>
+                    <div class="audience-ring-wrap" style="width: 120px; height: 120px; margin-bottom: 12px;">
+                        <svg class="audience-ring" viewBox="0 0 160 160">
+                            <circle class="ring-bg" cx="80" cy="80" r="70" />
+                            <circle class="ring-fg" cx="80" cy="80" r="70" id="audienceRing" />
+                        </svg>
+                        <div class="audience-ring-label">
+                            <span class="ring-pct" id="audiencePct" style="font-size: 1.2rem;">0%</span>
+                        </div>
+                    </div>
+                    <p class="card-desc" style="text-align: center; font-size: 0.75rem;">Cliquez sur un genre dans le
+                        graphique ROI pour une analyse complète de l'audience.</p>
+                </div>
+
+                <!-- Genre Performance Table -->
+                <div class="card card-table" id="genreTableCard">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="list" class="card-icon"></i>
+                            <h2>Top 10 Films par ROI</h2>
+                        </div>
+                        <span class="badge">Dataset 27k</span>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Film</th>
+                                    <th>Budget</th>
+                                    <th>Revenus</th>
+                                    <th>ROI</th>
+                                    <th>Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">
+                                        Chargement des données réelles…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+
+        <!-- Audience View -->
+        <div id="audienceView" class="view-content hidden">
+            <div class="view-header">
+                <button class="back-btn" id="backToDash"><i data-lucide="arrow-left"></i> Retour</button>
+                <h2 class="view-title">Analyse d'Audience & Marché : <span id="audienceGenreTitle"
+                        class="text-purple">Genre</span></h2>
+            </div>
+
+            <div class="audience-grid">
+                <!-- Market Stats -->
+                <div class="card stats-focus">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="info" class="card-icon"></i>
+                            <h2>Métriques du Genre</h2>
+                        </div>
+                    </div>
+                    <div class="focus-metrics">
+                        <div class="focus-metric">
+                            <span class="focus-label">ROI Moyen du Genre</span>
+                            <span class="focus-value text-purple" id="genreAvgRoi">0.0x</span>
+                        </div>
+                        <div class="focus-metric">
+                            <span class="focus-label">Budget Moyen</span>
+                            <span class="focus-value" id="genreAvgBudget">$0M</span>
+                        </div>
+                        <div class="focus-metric">
+                            <span class="focus-label">Part de Marché (Volume)</span>
+                            <span class="focus-value" id="genreMarketShare">0%</span>
+                        </div>
+                    </div>
+                    <div class="tags-section">
+                        <h3>Tags Marketing Recommandés</h3>
+                        <div class="audience-tags" id="genreTags">
+                            <span class="tag">Audience Fidèle</span>
+                            <span class="tag">Potentiel International</span>
+                            <span class="tag">Streaming Priority</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audience Insights Card -->
+                <div class="card card-audience">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="users" class="card-icon"></i>
+                            <h2>Profil d'Audience</h2>
+                        </div>
+                    </div>
+                    <p class="audience-insight" id="genreInsight">Analyse des tendances démographiques pour ce genre...
+                    </p>
+                    <div class="audience-demo-bars">
+                        <!-- Simulated demo bars -->
+                        <div class="demo-bar-wrap">
+                            <div class="demo-label">18-24</div>
+                            <div class="demo-bar">
+                                <div class="demo-fill" style="width: 75%;"></div>
+                            </div>
+                        </div>
+                        <div class="demo-bar-wrap">
+                            <div class="demo-label">25-34</div>
+                            <div class="demo-bar">
+                                <div class="demo-fill" style="width: 85%;"></div>
+                            </div>
+                        </div>
+                        <div class="demo-bar-wrap">
+                            <div class="demo-label">35-44</div>
+                            <div class="demo-bar">
+                                <div class="demo-fill" style="width: 45%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vanguard Table (Top 10) -->
+                <div class="card card-table full-width">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="award" class="card-icon"></i>
+                            <h2>Top 10 "Vanguard" du Genre (ROI)</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="genreVanguardTable">
+                            <thead>
+                                <tr>
+                                    <th>Film</th>
+                                    <th>Année</th>
+                                    <th>ROI</th>
+                                    <th>Revenus</th>
+                                    <th>Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ─── Movie Details Modal ─────────────────────────────── -->
+    <div class="modal-overlay hidden" id="movieModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal"><i data-lucide="x"></i></button>
+            <div class="modal-grid">
+                <div class="modal-poster-wrap">
+                    <img src="" alt="Affiche du film" id="modalPoster" class="modal-poster">
+                </div>
+                <div class="modal-info">
+                    <h2 id="modalTitle" class="modal-title">Titre du film</h2>
+                    <div class="modal-meta">
+                        <span id="modalGenre" class="badge">Genre</span>
+                        <span id="modalYear" class="badge">Année</span>
+                    </div>
+                    <p id="modalOverview" class="modal-overview">Synopsis du film...</p>
+
+                    <div class="modal-stats-grid">
+                        <div class="modal-stat">
+                            <span class="stat-label">Budget</span>
+                            <span id="modalBudget" class="stat-value">$0</span>
+                        </div>
+                        <div class="modal-stat">
+                            <span class="stat-label">Revenus</span>
+                            <span id="modalRevenue" class="stat-value">$0</span>
+                        </div>
+                        <div class="modal-stat">
+                            <span class="stat-label">ROI</span>
+                            <span id="modalROI" class="stat-value">0x</span>
+                        </div>
+                        <div class="modal-stat">
+                            <span class="stat-label">Note</span>
+                            <div class="rating-flex">
+                                <i data-lucide="star" class="star-icon"></i>
+                                <span id="modalRating" class="stat-value">0.0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
