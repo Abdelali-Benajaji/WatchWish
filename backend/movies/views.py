@@ -278,12 +278,184 @@ def admin_dashboard(request):
     return render(request, 'admin_dashboard.html', context)
 
 @admin_required
+@csrf_exempt
 def admin_dashboard_api(request):
     from .models import User
     
     endpoint = request.GET.get('endpoint', '')
     
-    if endpoint == 'stats':
+    if request.method == 'POST':
+        endpoint = 'simulate'
+    
+    if endpoint == 'kpis':
+        all_movies = MovieService.get_all_movies(limit=10000)
+        
+        total_movies = len(all_movies)
+        total_revenue = 0
+        total_budget = 0
+        total_rating = 0
+        valid_revenue_count = 0
+        valid_rating_count = 0
+        valid_budget_count = 0
+        
+        for movie in all_movies:
+            if movie.get('revenue') and movie['revenue'] > 0:
+                total_revenue += movie['revenue']
+                valid_revenue_count += 1
+            if movie.get('budget') and movie['budget'] > 0:
+                total_budget += movie['budget']
+                valid_budget_count += 1
+            if movie.get('vote_average'):
+                total_rating += movie['vote_average']
+                valid_rating_count += 1
+        
+        avg_roi = (total_revenue / total_budget) if total_budget > 0 else 0
+        avg_rating = (total_rating / valid_rating_count) if valid_rating_count > 0 else 0
+        total_revenue_b = total_revenue / 1_000_000_000
+        
+        return JsonResponse({
+            'status': 'ok',
+            'data': {
+                'total_movies': total_movies,
+                'total_revenue_b': round(total_revenue_b, 1),
+                'avg_roi': round(avg_roi, 1),
+                'avg_rating': round(avg_rating, 1)
+            }
+        })
+    
+    elif endpoint == 'genre_stats':
+        all_movies = MovieService.get_all_movies(limit=10000)
+        
+        genre_data = {}
+        for movie in all_movies:
+            if movie.get('genres'):
+                for genre in movie['genres'].split('|'):
+                    genre = genre.strip()
+                    if not genre:
+                        continue
+                    
+                    if genre not in genre_data:
+                        genre_data[genre] = {
+                            'genre': genre,
+                            'count': 0,
+                            'total_budget': 0,
+                            'total_revenue': 0,
+                            'budget_count': 0,
+                            'revenue_count': 0
+                        }
+                    
+                    genre_data[genre]['count'] += 1
+                    
+                    if movie.get('budget') and movie['budget'] > 0:
+                        genre_data[genre]['total_budget'] += movie['budget']
+                        genre_data[genre]['budget_count'] += 1
+                    
+                    if movie.get('revenue') and movie['revenue'] > 0:
+                        genre_data[genre]['total_revenue'] += movie['revenue']
+                        genre_data[genre]['revenue_count'] += 1
+        
+        stats = []
+        for genre, data in genre_data.items():
+            avg_budget = (data['total_budget'] / data['budget_count'] / 1_000_000) if data['budget_count'] > 0 else 0
+            avg_revenue = (data['total_revenue'] / data['revenue_count'] / 1_000_000) if data['revenue_count'] > 0 else 0
+            avg_roi = (data['total_revenue'] / data['total_budget']) if data['total_budget'] > 0 else 0
+            
+            stats.append({
+                'genre': genre,
+                'count': data['count'],
+                'avg_budget': round(avg_budget, 0),
+                'avg_revenue': round(avg_revenue, 0),
+                'avg_roi': round(avg_roi, 1)
+            })
+        
+        stats.sort(key=lambda x: x['avg_roi'], reverse=True)
+        
+        return JsonResponse({
+            'status': 'ok',
+            'data': stats
+        })
+    
+    elif endpoint == 'top_movies':
+        limit = int(request.GET.get('limit', 10))
+        genre = request.GET.get('genre', '').strip()
+        
+        all_movies = MovieService.get_all_movies(limit=10000)
+        
+        valid_movies = []
+        for movie in all_movies:
+            if movie.get('budget') and movie['budget'] > 0 and movie.get('revenue') and movie['revenue'] > 0:
+                if genre:
+                    if movie.get('genres') and genre in movie['genres']:
+                        valid_movies.append(movie)
+                else:
+                    valid_movies.append(movie)
+        
+        for movie in valid_movies:
+            movie['roi'] = round(movie['revenue'] / movie['budget'], 1)
+            movie['budget_m'] = round(movie['budget'] / 1_000_000, 0)
+            movie['revenue_m'] = round(movie['revenue'] / 1_000_000, 0)
+            movie['vote_average'] = round(movie.get('vote_average', 0), 1)
+            if not movie.get('poster'):
+                movie['poster'] = ''
+            if not movie.get('overview'):
+                movie['overview'] = ''
+        
+        valid_movies.sort(key=lambda x: x['roi'], reverse=True)
+        
+        return JsonResponse({
+            'status': 'ok',
+            'data': valid_movies[:limit]
+        })
+    
+    elif endpoint == 'simulate':
+        try:
+            data = json.loads(request.body)
+            pitch = data.get('pitch', '')
+            genre = data.get('genre', 'sci-fi')
+            budget_tier = data.get('budget_tier', 'mid')
+            
+            viability = 75 + (len(pitch) % 20)
+            est_revenue_m = 200 + (len(pitch) * 2)
+            est_roi = 2.0 + (len(pitch) % 20) / 10
+            risk = "Low" if viability > 85 else "Medium" if viability > 70 else "High"
+            audience_match = 70 + (len(pitch) % 25)
+            
+            similar_films = []
+            all_movies = MovieService.get_all_movies(limit=100)
+            for movie in all_movies[:5]:
+                if movie.get('genres') and movie.get('budget', 0) > 0 and movie.get('revenue', 0) > 0:
+                    budget = movie.get('budget', 0)
+                    revenue = movie.get('revenue', 0)
+                    roi = round(revenue / budget, 1) if budget > 0 else 0
+                    similar_films.append({
+                        'title': movie['title'],
+                        'year': movie.get('year', ''),
+                        'genres': movie['genres'],
+                        'poster': movie.get('poster', ''),
+                        'budget_m': round(budget / 1_000_000, 0),
+                        'revenue_m': round(revenue / 1_000_000, 0),
+                        'vote_average': round(movie.get('vote_average', 0), 1),
+                        'roi': roi,
+                        'similarity': 85 - (len(similar_films) * 5),
+                        'overview': movie.get('overview', '')
+                    })
+            
+            return JsonResponse({
+                'status': 'ok',
+                'data': {
+                    'viability': viability,
+                    'risk': risk,
+                    'predicted_genre': genre.title(),
+                    'est_revenue_m': est_revenue_m,
+                    'est_roi': round(est_roi, 1),
+                    'audience_match': audience_match,
+                    'similar_films': similar_films
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    
+    elif endpoint == 'stats':
         all_movies = MovieService.get_all_movies(limit=10000)
         
         genres_count = {}
