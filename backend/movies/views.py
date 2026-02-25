@@ -4,6 +4,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 import json
 from .services import MovieService
+from .decorators import admin_required
 
 def index(request):
     movie_title = request.GET.get('movie', '').strip()
@@ -164,19 +165,44 @@ def rate_movie(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
 
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login
+from django.contrib.auth import login, get_user_model
 from django.shortcuts import redirect
+from django import forms
+
+User = get_user_model()
+
+class SignUpForm(forms.ModelForm):
+    password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='Password confirmation', widget=forms.PasswordInput)
+
+    class Meta:
+        model = User
+        fields = ('username', 'email')
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("Passwords don't match")
+        return password2
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        user.role = 'user'
+        if commit:
+            user.save()
+        return user
 
 def signup(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = SignUpForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
             return redirect('index')
     else:
-        form = UserCreationForm()
+        form = SignUpForm()
     return render(request, 'registration/signup.html', {'form': form})
 
 def movie_detail(request, movie_id):
@@ -216,3 +242,356 @@ def movie_detail(request, movie_id):
         'imdb_url': imdb_url,
         'tmdb_url': tmdb_url
     })
+
+@admin_required
+def admin_dashboard(request):
+    from .models import User
+    from .services import DashboardAnalytics
+    
+    kpis = DashboardAnalytics.get_financial_kpis()
+    demographics = DashboardAnalytics.get_user_demographics()
+    
+    if not kpis:
+        all_movies = MovieService.get_all_movies(limit=10000)
+        total_films = len(all_movies)
+        
+        genres_count = {}
+        for movie in all_movies:
+            if movie.get('genres'):
+                for genre in movie['genres'].split('|'):
+                    genre = genre.strip()
+                    if genre:
+                        genres_count[genre] = genres_count.get(genre, 0) + 1
+        
+        total_users = User.objects.count()
+        admin_users = User.objects.filter(role='admin').count()
+        regular_users = total_users - admin_users
+        
+        context = {
+            'total_films': total_films,
+            'total_users': total_users,
+            'admin_users': admin_users,
+            'regular_users': regular_users,
+            'genres_count_json': json.dumps(genres_count),
+            'movies': all_movies[:10],
+        }
+    else:
+        total_users = demographics.get('total_users', User.objects.count())
+        admin_users = User.objects.filter(role='admin').count()
+        regular_users = total_users - admin_users
+        
+        context = {
+            'total_films': kpis.get('total_movies', 0),
+            'total_users': total_users,
+            'admin_users': admin_users,
+            'regular_users': regular_users,
+            'total_revenue_b': kpis.get('total_revenue_b', 0),
+            'avg_roi': kpis.get('avg_roi', 0),
+            'avg_rating': kpis.get('avg_rating', 0),
+            'demographics': demographics,
+        }
+    
+    return render(request, 'admin_dashboard.html', context)
+
+@admin_required
+def admin_movies_list(request):
+    page = int(request.GET.get('page', 1))
+    search = request.GET.get('search', '').strip()
+    genre = request.GET.get('genre', '').strip()
+    
+    limit = 20
+    skip = (page - 1) * limit
+    
+    if search:
+        movies = MovieService.search_movies(search, limit=1000)
+    elif genre:
+        movies = MovieService.get_movies_by_genre(genre, limit=1000)
+    else:
+        movies = MovieService.get_all_movies(limit=1000, skip=skip)
+    
+    total_count = len(movies)
+    movies_page = movies[skip:skip + limit] if skip > 0 else movies[:limit]
+    
+    for movie in movies_page:
+        movie['genre_list'] = movie.get('genres', '').split('|')
+    
+    return JsonResponse({
+        'movies': movies_page,
+        'page': page,
+        'total': total_count,
+        'has_more': len(movies) > skip + limit
+    })
+
+@admin_required
+@csrf_exempt
+def admin_dashboard_api(request):
+    from .models import User
+    from .services import DashboardAnalytics, MLMovieAnalyzer
+    
+    endpoint = request.GET.get('endpoint', '')
+    
+    if request.method == 'POST':
+        endpoint = 'simulate'
+    
+    if endpoint == 'kpis':
+        kpis = DashboardAnalytics.get_financial_kpis()
+        
+        if not kpis:
+            all_movies = MovieService.get_all_movies(limit=10000)
+            
+            total_movies = len(all_movies)
+            total_revenue = 0
+            total_budget = 0
+            total_rating = 0
+            valid_revenue_count = 0
+            valid_rating_count = 0
+            valid_budget_count = 0
+            
+            for movie in all_movies:
+                if movie.get('revenue') and movie['revenue'] > 0:
+                    total_revenue += movie['revenue']
+                    valid_revenue_count += 1
+                if movie.get('budget') and movie['budget'] > 0:
+                    total_budget += movie['budget']
+                    valid_budget_count += 1
+                if movie.get('vote_average'):
+                    total_rating += movie['vote_average']
+                    valid_rating_count += 1
+            
+            avg_roi = (total_revenue / total_budget) if total_budget > 0 else 0
+            avg_rating = (total_rating / valid_rating_count) if valid_rating_count > 0 else 0
+            total_revenue_b = total_revenue / 1_000_000_000
+            
+            kpis = {
+                'total_movies': total_movies,
+                'total_revenue_b': round(total_revenue_b, 1),
+                'avg_roi': round(avg_roi, 1),
+                'avg_rating': round(avg_rating, 1)
+            }
+        
+        return JsonResponse({
+            'status': 'ok',
+            'data': kpis
+        })
+    
+    elif endpoint == 'genre_stats':
+        stats = DashboardAnalytics.get_genre_statistics()
+        
+        if not stats:
+            all_movies = MovieService.get_all_movies(limit=10000)
+            
+            genre_data = {}
+            for movie in all_movies:
+                if movie.get('genres'):
+                    for genre in movie['genres'].split('|'):
+                        genre = genre.strip()
+                        if not genre:
+                            continue
+                        
+                        if genre not in genre_data:
+                            genre_data[genre] = {
+                                'genre': genre,
+                                'count': 0,
+                                'total_budget': 0,
+                                'total_revenue': 0,
+                                'budget_count': 0,
+                                'revenue_count': 0
+                            }
+                        
+                        genre_data[genre]['count'] += 1
+                        
+                        if movie.get('budget') and movie['budget'] > 0:
+                            genre_data[genre]['total_budget'] += movie['budget']
+                            genre_data[genre]['budget_count'] += 1
+                        
+                        if movie.get('revenue') and movie['revenue'] > 0:
+                            genre_data[genre]['total_revenue'] += movie['revenue']
+                            genre_data[genre]['revenue_count'] += 1
+            
+            stats = []
+            for genre, data in genre_data.items():
+                avg_budget = (data['total_budget'] / data['budget_count'] / 1_000_000) if data['budget_count'] > 0 else 0
+                avg_revenue = (data['total_revenue'] / data['revenue_count'] / 1_000_000) if data['revenue_count'] > 0 else 0
+                avg_roi = (data['total_revenue'] / data['total_budget']) if data['total_budget'] > 0 else 0
+                
+                stats.append({
+                    'genre': genre,
+                    'count': data['count'],
+                    'avg_budget': round(avg_budget, 0),
+                    'avg_revenue': round(avg_revenue, 0),
+                    'avg_roi': round(avg_roi, 1)
+                })
+            
+            stats.sort(key=lambda x: x['avg_roi'], reverse=True)
+        
+        return JsonResponse({
+            'status': 'ok',
+            'data': stats
+        })
+    
+    elif endpoint == 'top_movies':
+        limit = int(request.GET.get('limit', 10))
+        genre = request.GET.get('genre', '').strip()
+        
+        top_movies = DashboardAnalytics.get_top_movies(limit=limit, genre=genre if genre else None)
+        
+        if not top_movies:
+            all_movies = MovieService.get_all_movies(limit=10000)
+            
+            valid_movies = []
+            for movie in all_movies:
+                if movie.get('budget') and movie['budget'] > 0 and movie.get('revenue') and movie['revenue'] > 0:
+                    if genre:
+                        if movie.get('genres') and genre in movie['genres']:
+                            valid_movies.append(movie)
+                    else:
+                        valid_movies.append(movie)
+            
+            for movie in valid_movies:
+                movie['roi'] = round(movie['revenue'] / movie['budget'], 1)
+                movie['budget_m'] = round(movie['budget'] / 1_000_000, 0)
+                movie['revenue_m'] = round(movie['revenue'] / 1_000_000, 0)
+                movie['vote_average'] = round(movie.get('vote_average', 0), 1)
+                if not movie.get('poster'):
+                    movie['poster'] = ''
+                if not movie.get('overview'):
+                    movie['overview'] = ''
+            
+            valid_movies.sort(key=lambda x: x['roi'], reverse=True)
+            top_movies = valid_movies[:limit]
+        
+        return JsonResponse({
+            'status': 'ok',
+            'data': top_movies
+        })
+    
+    elif endpoint == 'simulate':
+        try:
+            data = json.loads(request.body)
+            pitch = data.get('pitch', '')
+            genre = data.get('genre', 'sci-fi')
+            budget_tier = data.get('budget_tier', 'mid')
+            
+            similar_films_ml = MLMovieAnalyzer.analyze_movie_concept(pitch, top_n=5)
+            
+            if similar_films_ml:
+                similar_films = []
+                for film in similar_films_ml:
+                    budget = film.get('budget', 0)
+                    revenue = film.get('revenue', 0)
+                    year = film.get('release_date', '')[:4] if film.get('release_date') else ''
+                    
+                    similar_films.append({
+                        'title': film['title'],
+                        'year': year,
+                        'genres': film['genres'],
+                        'poster': film.get('poster', ''),
+                        'budget_m': round(budget / 1_000_000, 0) if budget > 0 else 0,
+                        'revenue_m': round(revenue / 1_000_000, 0) if revenue > 0 else 0,
+                        'vote_average': film.get('vote_average', 0),
+                        'roi': round(revenue / budget, 1) if budget > 0 else 0,
+                        'similarity': film['similarity'],
+                        'overview': film.get('description', '')
+                    })
+                
+                avg_revenue = sum(f['revenue_m'] for f in similar_films if f['revenue_m'] > 0) / max(1, len([f for f in similar_films if f['revenue_m'] > 0]))
+                avg_roi = sum(f['roi'] for f in similar_films if f['roi'] > 0) / max(1, len([f for f in similar_films if f['roi'] > 0]))
+                avg_similarity = sum(f['similarity'] for f in similar_films) / max(1, len(similar_films))
+                
+                viability = min(95, int(avg_similarity * 0.7 + (avg_roi * 5)))
+                est_revenue_m = int(avg_revenue * 1.2)
+                est_roi = round(avg_roi * 0.9, 1)
+                risk = "Low" if viability > 75 else "Medium" if viability > 60 else "High"
+                audience_match = min(95, int(avg_similarity))
+                
+                genre_counts = {}
+                for film in similar_films_ml:
+                    for g in film['genres'].split('|'):
+                        g = g.strip()
+                        if g:
+                            genre_counts[g] = genre_counts.get(g, 0) + 1
+                
+                predicted_genre = max(genre_counts, key=genre_counts.get) if genre_counts else genre.title()
+            else:
+                viability = 75 + (len(pitch) % 20)
+                est_revenue_m = 200 + (len(pitch) * 2)
+                est_roi = 2.0 + (len(pitch) % 20) / 10
+                risk = "Low" if viability > 85 else "Medium" if viability > 70 else "High"
+                audience_match = 70 + (len(pitch) % 25)
+                predicted_genre = genre.title()
+                
+                similar_films = []
+                all_movies = MovieService.get_all_movies(limit=100)
+                for movie in all_movies[:5]:
+                    if movie.get('genres') and movie.get('budget', 0) > 0 and movie.get('revenue', 0) > 0:
+                        budget = movie.get('budget', 0)
+                        revenue = movie.get('revenue', 0)
+                        roi = round(revenue / budget, 1) if budget > 0 else 0
+                        similar_films.append({
+                            'title': movie['title'],
+                            'year': movie.get('year', ''),
+                            'genres': movie['genres'],
+                            'poster': movie.get('poster', ''),
+                            'budget_m': round(budget / 1_000_000, 0),
+                            'revenue_m': round(revenue / 1_000_000, 0),
+                            'vote_average': round(movie.get('vote_average', 0), 1),
+                            'roi': roi,
+                            'similarity': 85 - (len(similar_films) * 5),
+                            'overview': movie.get('overview', '')
+                        })
+            
+            return JsonResponse({
+                'status': 'ok',
+                'data': {
+                    'viability': viability,
+                    'risk': risk,
+                    'predicted_genre': predicted_genre,
+                    'est_revenue_m': est_revenue_m,
+                    'est_roi': est_roi,
+                    'audience_match': audience_match,
+                    'similar_films': similar_films
+                }
+            })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'error': str(e)}, status=400)
+    
+    elif endpoint == 'stats':
+        all_movies = MovieService.get_all_movies(limit=10000)
+        
+        genres_count = {}
+        for movie in all_movies:
+            if movie.get('genres'):
+                for genre in movie['genres'].split('|'):
+                    genre = genre.strip()
+                    if genre:
+                        genres_count[genre] = genres_count.get(genre, 0) + 1
+        
+        total_users = User.objects.count()
+        
+        return JsonResponse({
+            'total_films': len(all_movies),
+            'total_users': total_users,
+            'genres': genres_count,
+            'movies': all_movies[:100]
+        })
+    
+    elif endpoint == 'demographics':
+        demographics = DashboardAnalytics.get_user_demographics()
+        
+        if not demographics:
+            total_users = User.objects.count()
+            demographics = {
+                'total_users': total_users,
+                'by_gender': {},
+                'by_age_group': {},
+                'by_occupation': {}
+            }
+        
+        return JsonResponse({
+            'status': 'ok',
+            'data': demographics
+        })
+    
+    return JsonResponse({'error': 'Invalid endpoint'}, status=400)

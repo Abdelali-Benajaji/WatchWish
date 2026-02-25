@@ -81,6 +81,11 @@ Ensure MongoDB is running on `localhost:27017`
 ```bash
 python backend/manage.py load_movie_data
 ```
+###  Load Image Data
+
+```bash
+python backend/manage.py import_data
+```
 
 ### Step 5: Create Django Admin User (Optional)
 
@@ -145,6 +150,63 @@ Override via environment variables:
 - Rating interface (1-5 stars)
 - "Similar Movies" recommendations
 - Genre tags
+
+### 6. Admin Dashboard (NEW!)
+**Powered by Real Data & Machine Learning**
+
+The admin dashboard provides comprehensive analytics using real data from CSV files:
+
+#### Data Sources
+- **27,000+ movies** with financial data (budget, revenue, ROI)
+- **User demographics** (age groups, gender, occupation)
+- Real performance metrics from production data
+
+#### Key Features
+
+**AI-Powered Movie Analyzer**
+- Input movie concept/pitch
+- Get similar films using **TF-IDF Machine Learning**
+- Based on training from `TrainingTF-IDF.ipynb` notebook
+- See predicted ROI, revenue, and viability scores
+- View 5 most similar films with match percentages
+- Real-time analysis using 27k+ vectorized movies
+
+**Dynamic KPI Cards**
+- Total Movies from CSV data
+- Total Revenue (in billions)
+- Average ROI across all films
+- Average Community Rating
+
+**Interactive Charts**
+- ROI vs Budget bar chart
+- Scatter plot visualization
+- Real statistics from CSV data
+- Click any genre to drill down
+
+**Genre Performance Analysis**
+- Top 10 movies by ROI with real data
+- Market share calculations
+- Genre-specific audience insights
+- Financial metrics per genre
+
+**User Demographics**
+- Age group distribution from real data
+- Gender and occupation breakdowns
+- Genre-specific audience profiles
+
+#### Technology
+- **TF-IDF Vectorization** for text analysis
+- **Cosine Similarity** for movie matching
+- **Metadata Soup**: Combines title + description + genres
+- Pre-computed similarity matrix for fast queries
+- Auto-initializes on server startup
+
+#### Access
+- Login as admin user (see setup instructions)
+- Navigate to `/dashboard/`
+- Requires 'admin' role
+
+See `backend/movies/README.md` for detailed documentation.
 
 ## API Endpoints
 
