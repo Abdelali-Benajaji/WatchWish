@@ -68,27 +68,27 @@ function animateCounter(sel, target, decimals, suffix = "", prefix = "") {
 let barChart, scatterChart;
 
 const PALETTE = {
-    "Action": { bg: "rgba(59,130,246,.7)", border: "#3b82f6" },
-    "Adventure": { bg: "rgba(99,102,241,.7)", border: "#6366f1" },
-    "Animation": { bg: "rgba(6,182,212,.7)", border: "#06b6d4" },
-    "Comedy": { bg: "rgba(34,197,94,.7)", border: "#22c55e" },
+    "Action": { bg: "rgba(229,9,20,.7)", border: "#e50914" },
+    "Adventure": { bg: "rgba(255,59,48,.7)", border: "#ff3b30" },
+    "Animation": { bg: "rgba(255,107,107,.7)", border: "#ff6b6b" },
+    "Comedy": { bg: "rgba(251,191,36,.7)", border: "#fbbf24" },
     "Crime": { bg: "rgba(249,115,22,.7)", border: "#f97316" },
     "Documentary": { bg: "rgba(161,161,170,.7)", border: "#a1a1aa" },
     "Drama": { bg: "rgba(236,72,153,.7)", border: "#ec4899" },
-    "Fantasy": { bg: "rgba(167,139,250,.7)", border: "#a78bfa" },
-    "Horror": { bg: "rgba(239,68,68,.7)", border: "#ef4444" },
-    "Musical": { bg: "rgba(251,191,36,.7)", border: "#fbbf24" },
-    "Mystery": { bg: "rgba(20,184,166,.7)", border: "#14b8a6" },
+    "Fantasy": { bg: "rgba(178,7,16,.7)", border: "#b20710" },
+    "Horror": { bg: "rgba(153,27,27,.7)", border: "#991b1b" },
+    "Musical": { bg: "rgba(245,158,11,.7)", border: "#f59e0b" },
+    "Mystery": { bg: "rgba(124,58,237,.7)", border: "#7c3aed" },
     "Romance": { bg: "rgba(244,63,94,.7)", border: "#f43f5e" },
-    "Sci-Fi": { bg: "rgba(168,85,247,.7)", border: "#a855f7" },
-    "Science Fiction": { bg: "rgba(168,85,247,.7)", border: "#a855f7" },
+    "Sci-Fi": { bg: "rgba(239,68,68,.7)", border: "#ef4444" },
+    "Science Fiction": { bg: "rgba(239,68,68,.7)", border: "#ef4444" },
     "Thriller": { bg: "rgba(234,179,8,.7)", border: "#eab308" },
-    "War": { bg: "rgba(132,204,22,.7)", border: "#84cc16" },
+    "War": { bg: "rgba(220,38,38,.7)", border: "#dc2626" },
     "Western": { bg: "rgba(180,83,9,.7)", border: "#b45309" },
 };
 
 function colorFor(genre) {
-    return PALETTE[genre] || { bg: "rgba(139,92,246,.7)", border: "#8b5cf6" };
+    return PALETTE[genre] || { bg: "rgba(229,9,20,.7)", border: "#e50914" };
 }
 
 function chartDefaults() {
@@ -165,7 +165,7 @@ function renderCharts(stats) {
                 legend: { position: "top", align: "end", labels: { boxWidth: 10, usePointStyle: true, padding: 14 } },
                 tooltip: {
                     backgroundColor: "rgba(10,10,26,.94)",
-                    borderColor: "rgba(168,85,247,.3)", borderWidth: 1,
+                    borderColor: "rgba(229,9,20,.4)", borderWidth: 1,
                     cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
                     callbacks: {
                         label: ctx => ctx.dataset.label.startsWith("ROI")
@@ -228,7 +228,7 @@ function renderCharts(stats) {
                 legend: { position: "top", align: "end", labels: { boxWidth: 10, usePointStyle: true, padding: 14 } },
                 tooltip: {
                     backgroundColor: "rgba(10,10,26,.94)",
-                    borderColor: "rgba(168,85,247,.3)", borderWidth: 1,
+                    borderColor: "rgba(229,9,20,.4)", borderWidth: 1,
                     cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
                     callbacks: {
                         title: ctx => ctx[0].dataset.label,
@@ -323,7 +323,7 @@ function initAudienceRing() {
     grad.setAttribute("id", "ringGrad");
     grad.setAttribute("x1", "0"); grad.setAttribute("y1", "0");
     grad.setAttribute("x2", "1"); grad.setAttribute("y2", "1");
-    [["0", "#a855f7"], ["1", "#06b6d4"]].forEach(([offset, color]) => {
+    [["0", "#e50914"], ["1", "#ff3b30"]].forEach(([offset, color]) => {
         const s = document.createElementNS("http://www.w3.org/2000/svg", "stop");
         s.setAttribute("offset", offset); s.setAttribute("stop-color", color);
         grad.append(s);
