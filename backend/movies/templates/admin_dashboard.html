@@ -3,16 +3,1061 @@
 
 <head>
     <meta charset="UTF-8">
+    {% load static %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WatchWish Studio — Admin Dashboard</title>
     <meta name="description" content="WatchWish Studio: AI-powered movie intelligence and analytics dashboard">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+    <style>
+        /* ─── Reset & Tokens ─── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:           #0a0a0f;
+            --bg-card:      #111118;
+            --bg-card-hover:#16161f;
+            --bg-sidebar:   #0d0d14;
+            --border:       rgba(255,255,255,0.07);
+            --border-hover: rgba(255,255,255,0.13);
+
+            --red:          #e50914;
+            --red-soft:     rgba(229,9,20,0.12);
+            --red-glow:     rgba(229,9,20,0.25);
+            --blue:         #3b82f6;
+            --blue-soft:    rgba(59,130,246,0.12);
+            --cyan:         #06b6d4;
+            --cyan-soft:    rgba(6,182,212,0.12);
+            --pink:         #ec4899;
+            --pink-soft:    rgba(236,72,153,0.12);
+
+            --text:         #f0f0f5;
+            --text-sub:     #9999b0;
+            --text-muted:   #55556a;
+
+            --gradient-red: linear-gradient(135deg, #e50914, #ff3b30);
+            --gradient-blue: linear-gradient(135deg, #3b82f6, #2563eb);
+            --gradient-cyan: linear-gradient(135deg, #06b6d4, #0891b2);
+            --gradient-pink: linear-gradient(135deg, #ec4899, #db2777);
+
+            --sidebar-w:    220px;
+            --topbar-h:     64px;
+            --radius:       14px;
+            --radius-sm:    8px;
+            --shadow:       0 4px 24px rgba(0,0,0,0.4);
+            --shadow-card:  0 2px 12px rgba(0,0,0,0.3);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* ─── Scrollbar ─── */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            z-index: 100;
+            padding: 24px 0 20px;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 20px 28px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .logo-icon {
+            width: 36px; height: 36px;
+            flex-shrink: 0;
+        }
+        .logo-icon svg { width: 100%; height: 100%; }
+
+        .logo-text {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: -0.02em;
+            color: var(--text);
+        }
+
+        /* ─── Nav ─── */
+        .sidebar-nav {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 0 12px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            color: var(--text-sub);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: var(--red-soft);
+            color: #ff4d4d;
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 20%; bottom: 20%;
+            width: 3px;
+            background: var(--red);
+            border-radius: 0 3px 3px 0;
+        }
+
+        /* Nav section label */
+        .nav-section-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 12px 12px 6px;
+        }
+
+        .sidebar-footer {
+            padding: 16px 12px 0;
+            border-top: 1px solid var(--border);
+            margin: 0 0 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: var(--gradient-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 0.72rem;
+            letter-spacing: 0.03em;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .user-info { min-width: 0; }
+        .user-name {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-role {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* ─── Main ─── */
+        .main {
+            margin-left: var(--sidebar-w);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* ─── Topbar ─── */
+        .topbar {
+            height: var(--topbar-h);
+            background: rgba(10,10,15,0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .topbar-left { display: flex; align-items: baseline; gap: 12px; }
+        .page-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+        .page-subtitle {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+        .icon-btn {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-sub);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .icon-btn svg { width: 16px; height: 16px; }
+        .icon-btn:hover {
+            background: rgba(255,255,255,0.09);
+            color: var(--text);
+            border-color: var(--border-hover);
+        }
+
+        /* ─── View Content ─── */
+        .view-content {
+            padding: 24px 28px 40px;
+            flex: 1;
+        }
+        .view-content.hidden { display: none; }
+
+        /* ─── KPI Strip ─── */
+        .kpi-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, rgba(255,255,255,0.03), transparent 60%);
+            pointer-events: none;
+        }
+
+        .kpi-card:hover {
+            border-color: var(--border-hover);
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .kpi-icon {
+            width: 42px; height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .kpi-icon svg { width: 18px; height: 18px; }
+        .kpi-icon.red    { background: var(--red-soft);  color: var(--red);  }
+        .kpi-icon.blue   { background: var(--blue-soft); color: var(--blue); }
+        .kpi-icon.cyan   { background: var(--cyan-soft); color: var(--cyan); }
+        .kpi-icon.pink   { background: var(--pink-soft); color: var(--pink); }
+
+        .kpi-body { flex: 1; min-width: 0; }
+        .kpi-value {
+            display: block;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1.35rem;
+            color: var(--text);
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+        .kpi-label {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+            font-weight: 500;
+        }
+
+        .kpi-trend {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 99px;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .kpi-trend.up {
+            background: rgba(16,185,129,0.12);
+            color: #34d399;
+        }
+
+        /* ─── Card Base ─── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: var(--border-hover); }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .card-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-icon {
+            width: 16px; height: 16px;
+            color: var(--text-muted);
+        }
+
+        .card-header h2 {
+            font-family: 'Syne', sans-serif;
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .badge {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 99px;
+            background: var(--red-soft);
+            color: var(--red);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .badge-ai {
+            background: rgba(139,92,246,0.15);
+            color: #a78bfa;
+        }
+
+        /* ─── Dashboard Grid ─── */
+        /* New layout:
+           Row 1: ROI Bar Chart (full width)
+           Row 2: Budget Pie (left 60%) | Revenue Bar (right 40%) ← swapped Quick Actions here
+           Row 3: Quick Actions strip (horizontal compact) | Genre Table
+        */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            grid-template-rows: auto auto auto;
+            gap: 16px;
+        }
+
+        .full-width { grid-column: 1 / -1; }
+        .hidden { display: none !important; }
+
+        /* ─── Chart Wrap ─── */
+        .chart-wrap {
+            position: relative;
+            width: 100%;
+        }
+        .chart-wrap canvas { width: 100% !important; }
+
+        /* ─── Table ─── */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.81rem;
+        }
+        thead th {
+            padding: 9px 12px;
+            text-align: left;
+            font-size: 0.67rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.15s;
+        }
+        tbody tr:hover { background: rgba(255,255,255,0.03); }
+        tbody tr:last-child { border-bottom: none; }
+        tbody td {
+            padding: 10px 12px;
+            color: var(--text-sub);
+        }
+        tbody td:first-child { color: var(--text); font-weight: 500; }
+
+        /* ─── Quick Actions — horizontal compact strip ─── */
+        .quick-actions-strip {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .quick-actions-strip .card {
+            flex: 1;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border);
+            text-decoration: none;
+        }
+        .quick-actions-strip .card:hover {
+            border-color: var(--border-hover);
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-card);
+        }
+
+        .qa-icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .qa-icon svg { width: 16px; height: 16px; }
+        .qa-icon.red  { background: var(--red-soft);  color: var(--red);  }
+        .qa-icon.blue { background: var(--blue-soft); color: var(--blue); }
+        .qa-icon.cyan { background: var(--cyan-soft); color: var(--cyan); }
+        .qa-icon.pink { background: var(--pink-soft); color: var(--pink); }
+
+        .qa-text { min-width: 0; }
+        .qa-label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--text);
+            white-space: nowrap;
+        }
+        .qa-sub {
+            display: block;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* ─── View Headers ─── */
+        .view-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+        .view-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text);
+        }
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-sub);
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 7px 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .back-btn svg { width: 14px; height: 14px; }
+        .back-btn:hover {
+            color: var(--text);
+            background: rgba(255,255,255,0.09);
+            border-color: var(--border-hover);
+        }
+
+        /* ─── Movies View ─── */
+        .movies-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+        }
+        .search-box svg { width: 15px; height: 15px; color: var(--text-muted); flex-shrink: 0; }
+        .search-box input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.84rem;
+            width: 100%;
+        }
+        .search-box input::placeholder { color: var(--text-muted); }
+
+        .movies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+        }
+
+        .movie-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .movie-card:hover {
+            border-color: var(--red);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(229,9,20,0.15);
+        }
+        .movie-card-poster {
+            width: 100%;
+            aspect-ratio: 2/3;
+            max-height: 240px;
+            overflow: hidden;
+            background: var(--bg-sidebar);
+            display: block;
+            position: relative;
+        }
+        .movie-card-poster img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            display: block;
+            transition: transform 0.3s;
+        }
+        .movie-card:hover .movie-card-poster img { transform: scale(1.04); }
+        .movie-card-info { padding: 12px; }
+        .movie-card-title {
+            font-weight: 600;
+            font-size: 0.82rem;
+            color: var(--text);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .movie-card-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+            margin-top: 28px;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-sub);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 500;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255,255,255,0.09);
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+        .btn-secondary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* ─── Statistics View ─── */
+        .stats-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4,1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .stats-kpi-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 18px;
+        }
+        .stats-kpi-icon {
+            width: 38px; height: 38px;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .stats-kpi-icon svg { width: 16px; height: 16px; color: #fff; }
+        .stats-kpi-value {
+            display: block;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+        .stats-kpi-label {
+            display: block;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        /* ─── Audience View ─── */
+        .audience-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 14px;
+        }
+        .stats-focus { padding: 20px; }
+        .focus-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .focus-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+        .focus-label { font-size: 0.75rem; color: var(--text-muted); }
+        .focus-value {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+        .text-purple { color: #a78bfa; }
+        .tags-section h3 {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .audience-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tag {
+            font-size: 0.68rem;
+            padding: 4px 10px;
+            border-radius: 99px;
+            background: rgba(167,139,250,0.1);
+            color: #a78bfa;
+            border: 1px solid rgba(167,139,250,0.2);
+            font-weight: 500;
+        }
+        .audience-insight {
+            font-size: 0.82rem;
+            color: var(--text-sub);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .audience-demo-bars { display: flex; flex-direction: column; gap: 10px; }
+        .demo-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .demo-label { font-size: 0.72rem; color: var(--text-muted); width: 36px; flex-shrink: 0; }
+        .demo-bar {
+            flex: 1;
+            height: 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+        .demo-fill {
+            height: 100%;
+            background: var(--gradient-red);
+            border-radius: 99px;
+            transition: width 0.6s ease;
+        }
+
+        /* ─── Studio View ─── */
+        .studio-grid { display: grid; gap: 14px; }
+        .card-simulator { }
+        .card-desc {
+            font-size: 0.79rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .simulator-input-wrap { display: flex; flex-direction: column; gap: 12px; }
+        textarea {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.84rem;
+            padding: 12px 14px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+            line-height: 1.6;
+        }
+        textarea:focus { border-color: rgba(229,9,20,0.4); }
+        textarea::placeholder { color: var(--text-muted); }
+
+        .simulator-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .sim-controls { display: flex; gap: 8px; }
+        select {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-sub);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.8rem;
+            padding: 8px 12px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        select:focus { border-color: var(--border-hover); }
+
+        .btn-primary {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--gradient-red);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: #fff;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.84rem;
+            font-weight: 600;
+            padding: 9px 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-primary svg { width: 15px; height: 15px; }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 18px rgba(229,9,20,0.35);
+        }
+
+        .sim-result { margin-top: 20px; }
+        .sim-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .sim-result-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 0.88rem;
+            color: var(--text);
+        }
+        .sim-score {
+            font-size: 0.78rem;
+            color: var(--text-sub);
+        }
+        .sim-score strong { color: #34d399; }
+        .sim-result-metrics {
+            display: grid;
+            grid-template-columns: repeat(3,1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .sim-metric {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+        }
+        .sim-metric-label {
+            display: block;
+            font-size: 0.67rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .sim-metric-value {
+            display: block;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--text);
+        }
+        .sim-metric-value.caution { color: #fbbf24; }
+
+        .sim-films-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        .sim-films-list { display: flex; flex-direction: column; gap: 8px; }
+
+        /* ─── Modal ─── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(6px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            padding: 24px;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { opacity:0; transform: translateY(16px); }
+            to   { opacity:1; transform: translateY(0); }
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            width: 30px; height: 30px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .modal-close svg { width: 14px; height: 14px; }
+        .modal-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+        .modal-grid { display: grid; grid-template-columns: 200px 1fr; overflow: hidden; }
+        .modal-poster-wrap { width: 200px; min-width: 200px; height: 300px; max-height: 300px; overflow: hidden; background: #000; flex-shrink: 0; }
+        /* modal-poster sizing is handled by external CSS patch */
+        .modal-poster {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            display: block;
+        }
+        .modal-title {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+        .modal-meta { display: flex; gap: 6px; margin-bottom: 12px; }
+        .modal-overview {
+            font-size: 0.81rem;
+            color: var(--text-sub);
+            line-height: 1.65;
+            margin-bottom: 16px;
+        }
+        .modal-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2,1fr);
+            gap: 10px;
+        }
+        .modal-stat {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 11px 13px;
+        }
+        .stat-label {
+            display: block;
+            font-size: 0.67rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 3px;
+        }
+        .stat-value {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text);
+        }
+        .rating-flex { display: flex; align-items: center; gap: 5px; }
+        .star-icon { width: 13px; height: 13px; color: #fbbf24; }
+
+        /* ─── Chip Controls ─── */
+        .chart-controls { display: flex; gap: 5px; }
+        .chip {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 4px 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chip.active,
+        .chip:hover {
+            background: var(--red-soft);
+            border-color: rgba(229,9,20,0.3);
+            color: var(--red);
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 1100px) {
+            .kpi-strip { grid-template-columns: repeat(2,1fr); }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .stats-kpi-grid { grid-template-columns: repeat(2,1fr); }
+            .stats-grid { grid-template-columns: 1fr; }
+            .audience-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 720px) {
+            :root { --sidebar-w: 60px; }
+            .logo-text,
+            .nav-item span,
+            .user-info { display: none; }
+            .sidebar-logo { justify-content: center; padding: 0 0 20px; }
+            .sidebar-footer { justify-content: center; }
+            .nav-item { justify-content: center; padding: 12px; }
+            .main { margin-left: 60px; }
+            .kpi-strip { grid-template-columns: 1fr 1fr; }
+            .quick-actions-strip { flex-direction: column; }
+        }
+
+        /* ─── Entrance Animations ─── */
+        .kpi-card {
+            animation: fadeInUp 0.4s ease both;
+        }
+        .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+        .kpi-card:nth-child(2) { animation-delay: 0.10s; }
+        .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+        .kpi-card:nth-child(4) { animation-delay: 0.20s; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeIn 0.5s ease both;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        /* ─── Divider ─── */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 12px;
+        }
+    </style>
 </head>
 
 <body>
@@ -36,10 +1081,19 @@
         </div>
 
         <nav class="sidebar-nav">
+            <span class="nav-section-label">Main</span>
             <a href="#" class="nav-item active" data-page="dashboard" data-tooltip="Dashboard">
                 <i data-lucide="layout-dashboard"></i>
                 <span>Dashboard</span>
             </a>
+            <a href="#" class="nav-item" data-page="studio" data-tooltip="Studio">
+                <i data-lucide="sparkles"></i>
+                <span>Studio</span>
+            </a>
+
+            <div class="divider"></div>
+            <span class="nav-section-label">Explore</span>
+
             <a href="#" class="nav-item" data-page="audience" data-tooltip="Audience">
                 <i data-lucide="users"></i>
                 <span>Audience</span>
@@ -52,6 +1106,9 @@
                 <i data-lucide="bar-chart-3"></i>
                 <span>Statistics</span>
             </a>
+
+            <div class="divider"></div>
+
             <a href="{% url 'index' %}" class="nav-item" data-tooltip="Public Site">
                 <i data-lucide="home"></i>
                 <span>Public Site</span>
@@ -74,22 +1131,21 @@
         <header class="topbar">
             <div class="topbar-left">
                 <h1 class="page-title">Admin Dashboard</h1>
-                <span class="page-subtitle">Movie Intelligence & Analytics</span>
+                <span class="page-subtitle">Movie Intelligence &amp; Analytics</span>
             </div>
             <div class="topbar-right">
-                <!-- <div class="search-box">
-                    <i data-lucide="search"></i>
-                    <input type="text" placeholder="Search movies..." id="globalSearch">
-                </div> -->
-                <button class="icon-btn" data-tooltip="Quick Stats" id="quickStatsBtn"><i data-lucide="bar-chart-2"></i></button>
+                <button class="icon-btn" data-tooltip="Quick Stats" id="quickStatsBtn">
+                    <i data-lucide="bar-chart-2"></i>
+                </button>
             </div>
         </header>
 
-        <!-- View Containers -->
+        <!-- ═══ DASHBOARD VIEW ═══ -->
         <div id="dashboardView" class="view-content">
+
             <!-- KPI Strip -->
             <section class="kpi-strip">
-                <div class="kpi-card" data-tooltip="Click to view all movies" title="View Movies Database">
+                <div class="kpi-card" title="View Movies Database">
                     <div class="kpi-icon red"><i data-lucide="film"></i></div>
                     <div class="kpi-body">
                         <span class="kpi-value kpi-movies">…</span>
@@ -97,7 +1153,7 @@
                     </div>
                     <span class="kpi-trend up">Database</span>
                 </div>
-                <div class="kpi-card" data-tooltip="Click for detailed statistics" title="View Statistics">
+                <div class="kpi-card" title="View Statistics">
                     <div class="kpi-icon blue"><i data-lucide="dollar-sign"></i></div>
                     <div class="kpi-body">
                         <span class="kpi-value kpi-revenue">…</span>
@@ -105,7 +1161,7 @@
                     </div>
                     <span class="kpi-trend up">Real Data</span>
                 </div>
-                <div class="kpi-card" data-tooltip="Click for detailed statistics" title="View Statistics">
+                <div class="kpi-card" title="View Statistics">
                     <div class="kpi-icon cyan"><i data-lucide="trending-up"></i></div>
                     <div class="kpi-body">
                         <span class="kpi-value kpi-roi">…</span>
@@ -113,7 +1169,7 @@
                     </div>
                     <span class="kpi-trend up">Performance</span>
                 </div>
-                <div class="kpi-card" data-tooltip="Click for detailed statistics" title="View Statistics">
+                <div class="kpi-card" title="View Statistics">
                     <div class="kpi-icon pink"><i data-lucide="star"></i></div>
                     <div class="kpi-body">
                         <span class="kpi-value kpi-rating">…</span>
@@ -126,71 +1182,8 @@
             <!-- Dashboard Grid -->
             <section class="dashboard-grid">
 
-                <!-- Studio Simulator -->
-                <div class="card card-simulator" id="simulatorCard">
-                    <div class="card-header">
-                        <div class="card-title-group">
-                            <i data-lucide="sparkles" class="card-icon"></i>
-                            <h2>Movie Analyzer</h2>
-                        </div>
-                        <span class="badge badge-ai">AI Powered</span>
-                    </div>
-                    <p class="card-desc">Analyze movie concepts using TF-IDF Machine Learning to find similar films and predict performance based on real data.</p>
-                    <div class="simulator-input-wrap">
-                        <textarea id="pitchInput" placeholder="Describe your movie concept...&#10;&#10;Example: A sci-fi thriller set in 2087 where an AI detective must solve crimes in a city where humans and androids coexist." rows="5"></textarea>
-                        <div class="simulator-actions">
-                            <div class="sim-controls">
-                                <select id="genreSelect">
-                                    <option value="sci-fi">Sci-Fi</option>
-                                    <option value="action">Action</option>
-                                    <option value="drama">Drama</option>
-                                    <option value="comedy">Comedy</option>
-                                    <option value="horror">Horror</option>
-                                    <option value="animation">Animation</option>
-                                </select>
-                                <select id="budgetSelect">
-                                    <option value="low">$10-50M</option>
-                                    <option value="mid" selected>$50-150M</option>
-                                    <option value="high">$150M+</option>
-                                </select>
-                            </div>
-                            <button class="btn-primary" id="analyzePitchBtn">
-                                <i data-lucide="zap"></i>
-                                Analyze Concept
-                            </button>
-                        </div>
-                    </div>
-                    <!-- Simulator Result (hidden initially) -->
-                    <div class="sim-result hidden" id="simResult">
-                        <div class="sim-result-header">
-                            <span class="sim-result-title">AI Analysis Result</span>
-                            <span class="sim-score">Viability: <strong>87%</strong></span>
-                        </div>
-                        <span class="sim-genre-badge badge badge-ai" style="display:inline-block;margin-bottom:12px;">Predicted Genre: Sci-Fi</span>
-                        <div class="sim-result-metrics">
-                            <div class="sim-metric">
-                                <span class="sim-metric-label">Est. Revenue</span>
-                                <span class="sim-metric-value">$340M</span>
-                            </div>
-                            <div class="sim-metric">
-                                <span class="sim-metric-label">ROI Projection</span>
-                                <span class="sim-metric-value">2.8x</span>
-                            </div>
-                            <div class="sim-metric">
-                                <span class="sim-metric-label">Risk Level</span>
-                                <span class="sim-metric-value caution">Medium</span>
-                            </div>
-                        </div>
-                        <!-- Similar films from TF-IDF ML Model -->
-                        <div class="sim-films-section hidden" id="simFilmsSection">
-                            <div class="sim-films-label">Most Similar Films (ML Powered)</div>
-                            <div class="sim-films-list" id="simFilms"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ROI vs Budget Bar Chart -->
-                <div class="card card-chart" id="roiChartCard">
+                <!-- Row 1: ROI Bar Chart — full width -->
+                <div class="card full-width" id="roiChartCard">
                     <div class="card-header">
                         <div class="card-title-group">
                             <i data-lucide="bar-chart-3" class="card-icon"></i>
@@ -201,39 +1194,72 @@
                             <button class="chip" data-view="scatter">Scatter</button>
                         </div>
                     </div>
-                    <div class="chart-wrap">
+                    <div class="chart-wrap" style="height: 280px;">
                         <canvas id="roiBarChart"></canvas>
                         <canvas id="roiScatterChart" class="hidden"></canvas>
                     </div>
                 </div>
 
-                <!-- Quick Actions -->
-                <div class="card card-audience-mini">
+                <!-- Row 2 Left: Budget Distribution Pie -->
+                <div class="card">
                     <div class="card-header">
                         <div class="card-title-group">
-                            <i data-lucide="zap" class="card-icon"></i>
-                            <h2>Quick Actions</h2>
+                            <i data-lucide="pie-chart" class="card-icon"></i>
+                            <h2>Budget Distribution by Genre</h2>
                         </div>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
-                        <button class="btn-action" id="viewAllMoviesBtn">
-                            <i data-lucide="film"></i>
-                            <span>Browse All Movies</span>
-                        </button>
-                        <button class="btn-action" id="viewStatsBtn">
-                            <i data-lucide="bar-chart-3"></i>
-                            <span>View Statistics</span>
-                        </button>
-                        <button class="btn-action" id="analyzeGenreBtn">
-                            <i data-lucide="users"></i>
-                            <span>Analyze Audience</span>
-                        </button>
+                    <div class="chart-wrap" style="height: 280px;">
+                        <canvas id="budgetPieChart"></canvas>
                     </div>
-                    <p class="card-desc" style="text-align: center; font-size: 0.7rem; margin-top: 16px;">Click on a genre in the ROI chart to view detailed audience analysis.</p>
                 </div>
 
-                <!-- Genre Performance Table -->
-                <div class="card card-table" id="genreTableCard">
+                <!-- Row 2 Right: Top Revenue Performers — moved from overlapping position -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="trending-up" class="card-icon"></i>
+                            <h2>Top Revenue Performers</h2>
+                        </div>
+                    </div>
+                    <div class="chart-wrap" style="height: 280px;">
+                        <canvas id="revenueBarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Row 3: Quick Actions — compact horizontal strip (full width) -->
+                <div class="quick-actions-strip full-width">
+                    <button class="card" id="viewStudioBtn" style="background:var(--bg-card);border:1px solid var(--border);cursor:pointer;text-align:left;">
+                        <div class="qa-icon red"><i data-lucide="sparkles"></i></div>
+                        <div class="qa-text">
+                            <span class="qa-label">Movie Analyzer Studio</span>
+                            <span class="qa-sub">AI-powered concept analysis</span>
+                        </div>
+                    </button>
+                    <button class="card" id="viewAllMoviesBtn" style="background:var(--bg-card);border:1px solid var(--border);cursor:pointer;text-align:left;">
+                        <div class="qa-icon blue"><i data-lucide="film"></i></div>
+                        <div class="qa-text">
+                            <span class="qa-label">Browse All Movies</span>
+                            <span class="qa-sub">Full database explorer</span>
+                        </div>
+                    </button>
+                    <button class="card" id="viewStatsBtn" style="background:var(--bg-card);border:1px solid var(--border);cursor:pointer;text-align:left;">
+                        <div class="qa-icon cyan"><i data-lucide="bar-chart-3"></i></div>
+                        <div class="qa-text">
+                            <span class="qa-label">View Statistics</span>
+                            <span class="qa-sub">Genre &amp; revenue insights</span>
+                        </div>
+                    </button>
+                    <button class="card" id="analyzeGenreBtn" style="background:var(--bg-card);border:1px solid var(--border);cursor:pointer;text-align:left;">
+                        <div class="qa-icon pink"><i data-lucide="users"></i></div>
+                        <div class="qa-text">
+                            <span class="qa-label">Analyze Audience</span>
+                            <span class="qa-sub">Demographic &amp; market data</span>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Row 4: Top 10 Movies by ROI table — full width -->
+                <div class="card full-width" id="genreTableCard">
                     <div class="card-header">
                         <div class="card-title-group">
                             <i data-lucide="list" class="card-icon"></i>
@@ -254,8 +1280,7 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">
-                                        Loading real data…</td>
+                                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px;">Loading real data…</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -265,7 +1290,7 @@
             </section>
         </div>
 
-        <!-- Movies View -->
+        <!-- ═══ MOVIES VIEW ═══ -->
         <div id="moviesView" class="view-content hidden">
             <div class="view-header">
                 <button class="back-btn" id="backToDashFromMovies"><i data-lucide="arrow-left"></i> Back</button>
@@ -273,80 +1298,63 @@
             </div>
 
             <div class="movies-controls">
-                <div class="search-box" style="flex: 1; max-width: 500px;">
+                <div class="search-box" style="flex:1;max-width:500px;">
                     <i data-lucide="search"></i>
                     <input type="text" placeholder="Search movies..." id="moviesSearch">
                 </div>
-                <!-- <select id="moviesGenreFilter" class="genre-filter-select">
-                    <option value="">All Genres</option>
-                    <option value="Action">Action</option>
-                    <option value="Adventure">Adventure</option>
-                    <option value="Animation">Animation</option>
-                    <option value="Comedy">Comedy</option>
-                    <option value="Crime">Crime</option>
-                    <option value="Documentary">Documentary</option>
-                    <option value="Drama">Drama</option>
-                    <option value="Fantasy">Fantasy</option>
-                    <option value="Horror">Horror</option>
-                    <option value="Mystery">Mystery</option>
-                    <option value="Romance">Romance</option>
-                    <option value="Sci-Fi">Sci-Fi</option>
-                    <option value="Thriller">Thriller</option>
-                </select>
-                <div class="movies-count" id="moviesCount">Total: 0</div> -->
             </div>
 
             <div class="movies-grid" id="moviesGrid">
-                <div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading movies...</div>
+                <div style="text-align:center;padding:40px;color:var(--text-muted);">Loading movies...</div>
             </div>
 
-            <div class="pagination" id="moviesPagination" style="display: none;">
+            <div class="pagination" id="moviesPagination" style="display:none;">
                 <button class="btn-secondary" id="prevPage" disabled>Previous</button>
-                <span id="pageInfo">Page 1</span>
+                <span id="pageInfo" style="font-size:0.8rem;color:var(--text-muted);">Page 1</span>
                 <button class="btn-secondary" id="nextPage">Next</button>
             </div>
         </div>
 
-        <!-- Statistics View -->
+        <!-- ═══ STATISTICS VIEW ═══ -->
         <div id="statisticsView" class="view-content hidden">
             <div class="view-header">
                 <button class="back-btn" id="backToDashFromStats"><i data-lucide="arrow-left"></i> Back</button>
-                <h2 class="view-title">Statistics & Analytics</h2>
+                <h2 class="view-title">Statistics &amp; Analytics</h2>
             </div>
 
             <section class="stats-kpi-grid">
                 <div class="card stats-kpi-card">
-                    <div class="stats-kpi-icon" style="background: var(--gradient-red);">
+                    <div class="stats-kpi-icon" style="background:var(--gradient-red);">
                         <i data-lucide="film"></i>
                     </div>
-                    <div class="stats-kpi-body">
+                    <div>
                         <span class="stats-kpi-value" id="statsMovieCount">0</span>
                         <span class="stats-kpi-label">Total Movies</span>
                     </div>
                 </div>
                 <div class="card stats-kpi-card">
-                    <div class="stats-kpi-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                    <div class="stats-kpi-icon" style="background:var(--gradient-blue);">
                         <i data-lucide="dollar-sign"></i>
                     </div>
-                    <div class="stats-kpi-body">
+                    <div>
                         <span class="stats-kpi-value" id="statsRevenue">$0B</span>
                         <span class="stats-kpi-label">Total Revenue</span>
                     </div>
                 </div>
                 <div class="card stats-kpi-card">
-                    <div class="stats-kpi-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                    <div class="stats-kpi-icon" style="background:var(--gradient-cyan);">
                         <i data-lucide="trending-up"></i>
                     </div>
-                    <div class="stats-kpi-body">
+                    <div>
                         <span class="stats-kpi-value" id="statsROI">0x</span>
                         <span class="stats-kpi-label">Average ROI</span>
                     </div>
                 </div>
                 <div class="card stats-kpi-card">
-                    <div class="stats-kpi-icon" style="background: linear-gradient(135deg, #ec4899, #db2777);">
+                    <div class="stats-kpi-icon" style="background:var(--gradient-pink);">
                         <i data-lucide="star"></i>
                     </div>
-                    <div class="stats-kpi-body">
+                    <div>
                         <span class="stats-kpi-value" id="statsRating">0.0</span>
                         <span class="stats-kpi-label">Average Rating</span>
                     </div>
@@ -354,31 +1362,31 @@
             </section>
 
             <div class="stats-grid">
-                <div class="card card-chart full-width">
+                <div class="card full-width">
                     <div class="card-header">
                         <div class="card-title-group">
                             <i data-lucide="pie-chart" class="card-icon"></i>
                             <h2>Genre Distribution</h2>
                         </div>
                     </div>
-                    <div class="chart-wrap" style="height: 350px;">
+                    <div class="chart-wrap" style="height:350px;">
                         <canvas id="genreDistChart"></canvas>
                     </div>
                 </div>
 
-                <div class="card card-chart full-width">
+                <div class="card full-width">
                     <div class="card-header">
                         <div class="card-title-group">
                             <i data-lucide="trending-up" class="card-icon"></i>
                             <h2>Top Genres by Revenue</h2>
                         </div>
                     </div>
-                    <div class="chart-wrap" style="height: 350px;">
+                    <div class="chart-wrap" style="height:350px;">
                         <canvas id="genreRevenueChart"></canvas>
                     </div>
                 </div>
 
-                <div class="card card-table full-width">
+                <div class="card full-width">
                     <div class="card-header">
                         <div class="card-title-group">
                             <i data-lucide="list" class="card-icon"></i>
@@ -398,7 +1406,7 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">Loading...</td>
+                                    <td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">Loading...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -407,15 +1415,14 @@
             </div>
         </div>
 
-        <!-- Audience View -->
+        <!-- ═══ AUDIENCE VIEW ═══ -->
         <div id="audienceView" class="view-content hidden">
             <div class="view-header">
                 <button class="back-btn" id="backToDash"><i data-lucide="arrow-left"></i> Back</button>
-                <h2 class="view-title">Audience & Market Analysis: <span id="audienceGenreTitle" class="text-purple">Genre</span></h2>
+                <h2 class="view-title">Audience &amp; Market Analysis: <span id="audienceGenreTitle" class="text-purple">Genre</span></h2>
             </div>
 
             <div class="audience-grid">
-                <!-- Market Stats -->
                 <div class="card stats-focus">
                     <div class="card-header">
                         <div class="card-title-group">
@@ -447,8 +1454,7 @@
                     </div>
                 </div>
 
-                <!-- Audience Insights Card -->
-                <div class="card card-audience">
+                <div class="card">
                     <div class="card-header">
                         <div class="card-title-group">
                             <i data-lucide="users" class="card-icon"></i>
@@ -457,30 +1463,22 @@
                     </div>
                     <p class="audience-insight" id="genreInsight">Analyzing demographic trends for this genre...</p>
                     <div class="audience-demo-bars">
-                        <!-- Simulated demo bars -->
                         <div class="demo-bar-wrap">
-                            <div class="demo-label">18-24</div>
-                            <div class="demo-bar">
-                                <div class="demo-fill" style="width: 75%;"></div>
-                            </div>
+                            <div class="demo-label">18–24</div>
+                            <div class="demo-bar"><div class="demo-fill" style="width:75%;"></div></div>
                         </div>
                         <div class="demo-bar-wrap">
-                            <div class="demo-label">25-34</div>
-                            <div class="demo-bar">
-                                <div class="demo-fill" style="width: 85%;"></div>
-                            </div>
+                            <div class="demo-label">25–34</div>
+                            <div class="demo-bar"><div class="demo-fill" style="width:85%;"></div></div>
                         </div>
                         <div class="demo-bar-wrap">
-                            <div class="demo-label">35-44</div>
-                            <div class="demo-bar">
-                                <div class="demo-fill" style="width: 45%;"></div>
-                            </div>
+                            <div class="demo-label">35–44</div>
+                            <div class="demo-bar"><div class="demo-fill" style="width:45%;"></div></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Vanguard Table (Top 10) -->
-                <div class="card card-table full-width">
+                <div class="card" style="grid-column:1/-1;">
                     <div class="card-header">
                         <div class="card-title-group">
                             <i data-lucide="award" class="card-icon"></i>
@@ -498,10 +1496,79 @@
                                     <th>Rating</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- Loaded via JS -->
-                            </tbody>
+                            <tbody></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ STUDIO VIEW ═══ -->
+        <div id="studioView" class="view-content hidden">
+            <div class="view-header">
+                <button class="back-btn" id="backToDashFromStudio"><i data-lucide="arrow-left"></i> Back</button>
+                <h2 class="view-title">Movie Analyzer Studio</h2>
+            </div>
+
+            <div class="studio-grid">
+                <div class="card card-simulator">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <i data-lucide="sparkles" class="card-icon"></i>
+                            <h2>Movie Analyzer</h2>
+                        </div>
+                        <span class="badge badge-ai">AI Powered</span>
+                    </div>
+                    <p class="card-desc">Analyze movie concepts using TF-IDF Machine Learning to find similar films and predict performance based on real data.</p>
+                    <div class="simulator-input-wrap">
+                        <textarea id="pitchInput" placeholder="Describe your movie concept...&#10;&#10;Example: A sci-fi thriller set in 2087 where an AI detective must solve crimes in a city where humans and androids coexist." rows="5"></textarea>
+                        <div class="simulator-actions">
+                            <div class="sim-controls">
+                                <select id="genreSelect">
+                                    <option value="sci-fi">Sci-Fi</option>
+                                    <option value="action">Action</option>
+                                    <option value="drama">Drama</option>
+                                    <option value="comedy">Comedy</option>
+                                    <option value="horror">Horror</option>
+                                    <option value="animation">Animation</option>
+                                </select>
+                                <select id="budgetSelect">
+                                    <option value="low">$10–50M</option>
+                                    <option value="mid" selected>$50–150M</option>
+                                    <option value="high">$150M+</option>
+                                </select>
+                            </div>
+                            <button class="btn-primary" id="analyzePitchBtn">
+                                <i data-lucide="zap"></i>
+                                Analyze Concept
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="sim-result hidden" id="simResult">
+                        <div class="sim-result-header">
+                            <span class="sim-result-title">AI Analysis Result</span>
+                            <span class="sim-score">Viability: <strong>87%</strong></span>
+                        </div>
+                        <span class="sim-genre-badge badge badge-ai" style="display:inline-block;margin-bottom:12px;">Predicted Genre: Sci-Fi</span>
+                        <div class="sim-result-metrics">
+                            <div class="sim-metric">
+                                <span class="sim-metric-label">Est. Revenue</span>
+                                <span class="sim-metric-value">$340M</span>
+                            </div>
+                            <div class="sim-metric">
+                                <span class="sim-metric-label">ROI Projection</span>
+                                <span class="sim-metric-value">2.8x</span>
+                            </div>
+                            <div class="sim-metric">
+                                <span class="sim-metric-label">Risk Level</span>
+                                <span class="sim-metric-value caution">Medium</span>
+                            </div>
+                        </div>
+                        <div class="sim-films-section hidden" id="simFilmsSection">
+                            <div class="sim-films-label">Most Similar Films (ML Powered)</div>
+                            <div class="sim-films-list" id="simFilms"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -524,7 +1591,6 @@
                         <span id="modalYear" class="badge">Year</span>
                     </div>
                     <p id="modalOverview" class="modal-overview">Movie synopsis...</p>
-
                     <div class="modal-stats-grid">
                         <div class="modal-stat">
                             <span class="stat-label">Budget</span>
@@ -552,6 +1618,9 @@
     </div>
 
     <script src="{% static 'js/admin_dashboard.js' %}"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
 </body>
-
 </html>

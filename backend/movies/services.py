@@ -360,6 +360,7 @@ class MLMovieAnalyzer:
     _tfidf_vectorizer = None
     _tfidf_matrix = None
     _movies_df = None
+    _films_df = None
     _initialized = False
     
     @classmethod
@@ -372,7 +373,7 @@ class MLMovieAnalyzer:
             if hasattr(base_dir, 'parent'):
                 base_dir = base_dir.parent
             
-            csv_path = os.path.join(base_dir, 'data', 'dashboard_data', 'data_of_all_films.csv')
+            csv_path = os.path.join(base_dir, 'data', 'dashboard_data2', 'metadata_simulator.csv')
             if not os.path.exists(csv_path):
                 print(f"CSV file not found at: {csv_path}")
                 return False
@@ -381,7 +382,10 @@ class MLMovieAnalyzer:
             cls._movies_df = pd.read_csv(csv_path)
             print(f"Loaded {len(cls._movies_df)} movies")
             
-            cls._movies_df['description'] = cls._movies_df['description'].fillna('')
+            if 'description' not in cls._movies_df.columns:
+                cls._movies_df['description'] = ''
+            else:
+                cls._movies_df['description'] = cls._movies_df['description'].fillna('')
             cls._movies_df['title'] = cls._movies_df['title'].fillna('')
             cls._movies_df['genres'] = cls._movies_df['genres'].fillna('')
             
@@ -401,6 +405,14 @@ class MLMovieAnalyzer:
             
             cls._tfidf_matrix = cls._tfidf_vectorizer.fit_transform(cls._movies_df['metadata_soup'])
             print(f"TF-IDF matrix shape: {cls._tfidf_matrix.shape}")
+            
+            films_csv_path = os.path.join(base_dir, 'data', 'dashboard_data2', 'Films.csv')
+            if os.path.exists(films_csv_path):
+                print(f"Loading Films data from: {films_csv_path}")
+                cls._films_df = pd.read_csv(films_csv_path)
+                print(f"Loaded {len(cls._films_df)} films with full data")
+            else:
+                print(f"Films.csv not found at: {films_csv_path}")
             
             cls._initialized = True
             print("ML Analyzer initialized successfully!")
@@ -439,23 +451,48 @@ class MLMovieAnalyzer:
             for idx in top_indices:
                 if similarities[idx] > 0.01:
                     movie_data = cls._movies_df.iloc[idx]
+                    
+                    tmdb_id = movie_data.get('tmdbId', movie_data.get('tmdb_id', 0))
+                    
+                    budget = 0
+                    revenue = 0
+                    vote_average = 0
+                    release_date = ''
+                    description = str(movie_data.get('description', ''))
+                    poster = str(movie_data.get('poster_url', ''))
+                    
+                    if cls._films_df is not None and pd.notna(tmdb_id):
+                        film_match = cls._films_df[cls._films_df['tmdbId'] == int(tmdb_id)]
+                        if not film_match.empty:
+                            film = film_match.iloc[0]
+                            budget = int(film['budget']) if pd.notna(film.get('budget')) else 0
+                            revenue = int(film['revenue']) if pd.notna(film.get('revenue')) else 0
+                            vote_average = round(float(film['vote_average']), 1) if pd.notna(film.get('vote_average')) else 0
+                            release_date = str(film.get('release_date', ''))
+                            if pd.notna(film.get('description')) and str(film.get('description')):
+                                description = str(film.get('description'))
+                            if pd.notna(film.get('poster_url')) and str(film.get('poster_url')):
+                                poster = str(film.get('poster_url'))
+                    
                     results.append({
-                        'movieId': int(movie_data['movieId']) if pd.notna(movie_data['movieId']) else 0,
+                        'movieId': int(tmdb_id) if pd.notna(tmdb_id) else 0,
                         'title': str(movie_data['title']),
                         'similarity': round(float(similarities[idx] * 100), 1),
                         'genres': str(movie_data['genres']),
-                        'description': str(movie_data.get('description', '')),
-                        'poster': str(movie_data.get('poster_url', '')),
-                        'budget': int(movie_data['budget']) if pd.notna(movie_data.get('budget')) else 0,
-                        'revenue': int(movie_data['revenue']) if pd.notna(movie_data.get('revenue')) else 0,
-                        'vote_average': round(float(movie_data['vote_average']), 1) if pd.notna(movie_data.get('vote_average')) else 0,
-                        'release_date': str(movie_data.get('release_date', ''))
+                        'description': description,
+                        'poster': poster,
+                        'budget': budget,
+                        'revenue': revenue,
+                        'vote_average': vote_average,
+                        'release_date': release_date
                     })
             
             return results
             
         except Exception as e:
             print(f"Concept analysis failed: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
 
@@ -470,8 +507,8 @@ class DashboardAnalytics:
             if hasattr(base_dir, 'parent'):
                 base_dir = base_dir.parent
             
-            users_path = os.path.join(base_dir, 'data', 'dashboard_data', 'users.csv')
-            films_path = os.path.join(base_dir, 'data', 'dashboard_data', 'data_of_all_films.csv')
+            users_path = os.path.join(base_dir, 'data', 'dashboard_data2', 'users.csv')
+            films_path = os.path.join(base_dir, 'data', 'dashboard_data2', 'Films.csv')
             
             if os.path.exists(users_path):
                 print(f"Loading users from: {users_path}")

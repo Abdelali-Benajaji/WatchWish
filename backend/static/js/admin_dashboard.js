@@ -6,7 +6,6 @@ const API_BASE = window.location.origin;
 
 document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
-
     initSidebar();
     initChartSwitcher();
     initSimulator();
@@ -15,13 +14,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSearch();
     initMoviesPage();
     initStatisticsPage();
-
+    initStudioPage();
     await loadRealData();
     initAudienceRing();
 });
 
 async function loadRealData() {
-    await Promise.all([loadKPIs(), loadCharts(), loadTopMoviesTable()]);
+    await Promise.all([loadKPIs(), loadCharts(), loadTopMoviesTable(), loadDashboardExtraCharts()]);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -29,20 +28,15 @@ async function loadRealData() {
    ═══════════════════════════════════════════════════════════════ */
 async function loadKPIs() {
     try {
-        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=kpis`);
+        const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=kpis`);
         const json = await res.json();
         const d = json.data;
         animateCounter(".kpi-movies", d.total_movies, 0, "");
         animateCounter(".kpi-revenue", d.total_revenue_b, 1, "B", "$");
         animateCounter(".kpi-roi", d.avg_roi, 1, "x");
         animateCounter(".kpi-rating", d.avg_rating, 1, "/10");
-        
         document.querySelectorAll(".kpi-card").forEach((card, i) => {
-            card.style.cursor = "pointer";
-            card.addEventListener("click", () => {
-                if (i === 0) navigateTo("movies");
-                else if (i === 1 || i === 2 || i === 3) navigateTo("statistics");
-            });
+            card.addEventListener("click", () => i === 0 ? navigateTo("movies") : navigateTo("statistics"));
         });
     } catch (e) {
         console.error("KPI load failed:", e);
@@ -60,13 +54,11 @@ function initDemoKPIs() {
 function animateCounter(sel, target, decimals, suffix = "", prefix = "") {
     const el = document.querySelector(sel);
     if (!el) return;
-    const duration = 1400;
-    const start = performance.now();
+    const duration = 1400, start = performance.now();
     const tick = (now) => {
         const p = Math.min((now - start) / duration, 1);
         const ease = 1 - Math.pow(1 - p, 3);
-        const val = target * ease;
-        el.textContent = prefix + val.toFixed(decimals) + suffix;
+        el.textContent = prefix + (target * ease).toFixed(decimals) + suffix;
         if (p < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -75,26 +67,26 @@ function animateCounter(sel, target, decimals, suffix = "", prefix = "") {
 /* ═══════════════════════════════════════════════════════════════
    CHARTS
    ═══════════════════════════════════════════════════════════════ */
-let barChart, scatterChart;
+let barChart, scatterChart, budgetPieChart, revenueBarChart;
 
 const PALETTE = {
-    "Action": { bg: "rgba(229,9,20,.7)", border: "#e50914" },
-    "Adventure": { bg: "rgba(255,59,48,.7)", border: "#ff3b30" },
-    "Animation": { bg: "rgba(255,107,107,.7)", border: "#ff6b6b" },
-    "Comedy": { bg: "rgba(251,191,36,.7)", border: "#fbbf24" },
-    "Crime": { bg: "rgba(249,115,22,.7)", border: "#f97316" },
-    "Documentary": { bg: "rgba(161,161,170,.7)", border: "#a1a1aa" },
-    "Drama": { bg: "rgba(236,72,153,.7)", border: "#ec4899" },
-    "Fantasy": { bg: "rgba(178,7,16,.7)", border: "#b20710" },
-    "Horror": { bg: "rgba(153,27,27,.7)", border: "#991b1b" },
-    "Musical": { bg: "rgba(245,158,11,.7)", border: "#f59e0b" },
-    "Mystery": { bg: "rgba(124,58,237,.7)", border: "#7c3aed" },
-    "Romance": { bg: "rgba(244,63,94,.7)", border: "#f43f5e" },
-    "Sci-Fi": { bg: "rgba(239,68,68,.7)", border: "#ef4444" },
-    "Science Fiction": { bg: "rgba(239,68,68,.7)", border: "#ef4444" },
-    "Thriller": { bg: "rgba(234,179,8,.7)", border: "#eab308" },
-    "War": { bg: "rgba(220,38,38,.7)", border: "#dc2626" },
-    "Western": { bg: "rgba(180,83,9,.7)", border: "#b45309" },
+    "Action":          { bg: "rgba(229,9,20,.7)",    border: "#e50914" },
+    "Adventure":       { bg: "rgba(255,59,48,.7)",   border: "#ff3b30" },
+    "Animation":       { bg: "rgba(255,107,107,.7)", border: "#ff6b6b" },
+    "Comedy":          { bg: "rgba(251,191,36,.7)",  border: "#fbbf24" },
+    "Crime":           { bg: "rgba(249,115,22,.7)",  border: "#f97316" },
+    "Documentary":     { bg: "rgba(161,161,170,.7)", border: "#a1a1aa" },
+    "Drama":           { bg: "rgba(236,72,153,.7)",  border: "#ec4899" },
+    "Fantasy":         { bg: "rgba(178,7,16,.7)",    border: "#b20710" },
+    "Horror":          { bg: "rgba(153,27,27,.7)",   border: "#991b1b" },
+    "Musical":         { bg: "rgba(245,158,11,.7)",  border: "#f59e0b" },
+    "Mystery":         { bg: "rgba(124,58,237,.7)",  border: "#7c3aed" },
+    "Romance":         { bg: "rgba(244,63,94,.7)",   border: "#f43f5e" },
+    "Sci-Fi":          { bg: "rgba(239,68,68,.7)",   border: "#ef4444" },
+    "Science Fiction": { bg: "rgba(239,68,68,.7)",   border: "#ef4444" },
+    "Thriller":        { bg: "rgba(234,179,8,.7)",   border: "#eab308" },
+    "War":             { bg: "rgba(220,38,38,.7)",   border: "#dc2626" },
+    "Western":         { bg: "rgba(180,83,9,.7)",    border: "#b45309" },
 };
 
 function colorFor(genre) {
@@ -121,18 +113,15 @@ async function loadCharts() {
 
 function renderCharts(stats) {
     chartDefaults();
-
-    const sorted = [...stats].sort((a, b) => b.avg_roi - a.avg_roi).slice(0, 12);
-    const labels = sorted.map(d => d.genre);
-    const rois = sorted.map(d => d.avg_roi);
+    const sorted  = [...stats].sort((a, b) => b.avg_roi - a.avg_roi).slice(0, 12);
+    const labels  = sorted.map(d => d.genre);
+    const rois    = sorted.map(d => d.avg_roi);
     const budgets = sorted.map(d => d.avg_budget);
-    const revenues = sorted.map(d => d.avg_revenue);
-    const bgs = labels.map(g => colorFor(g).bg);
+    const bgs     = labels.map(g => colorFor(g).bg);
     const borders = labels.map(g => colorFor(g).border);
 
     const barCtx = document.getElementById("roiBarChart").getContext("2d");
-
-    const grads = bgs.map((bg, i) => {
+    const grads  = bgs.map((bg, i) => {
         const g = barCtx.createLinearGradient(0, 0, 0, 280);
         g.addColorStop(0, borders[i]);
         g.addColorStop(1, bg.replace(".7", ".1"));
@@ -142,72 +131,25 @@ function renderCharts(stats) {
     if (barChart) barChart.destroy();
     barChart = new Chart(barCtx, {
         type: "bar",
-        data: {
-            labels,
-            datasets: [
-                {
-                    label: "ROI (x)",
-                    data: rois,
-                    backgroundColor: grads,
-                    borderColor: borders,
-                    borderWidth: 1.5,
-                    borderRadius: 6,
-                    barPercentage: .6,
-                    yAxisID: "y"
-                },
-                {
-                    label: "Avg Budget ($M)",
-                    data: budgets,
-                    backgroundColor: "rgba(255,255,255,.06)",
-                    borderColor: "rgba(255,255,255,.12)",
-                    borderWidth: 1,
-                    borderRadius: 6,
-                    barPercentage: .6,
-                    yAxisID: "y1"
-                }
-            ]
-        },
+        data: { labels, datasets: [
+            { label: "ROI (x)", data: rois, backgroundColor: grads, borderColor: borders, borderWidth: 1.5, borderRadius: 6, barPercentage: .6, yAxisID: "y" },
+            { label: "Avg Budget ($M)", data: budgets, backgroundColor: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.12)", borderWidth: 1, borderRadius: 6, barPercentage: .6, yAxisID: "y1" }
+        ]},
         options: {
             responsive: true, maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
             animation: { duration: 900, easing: "easeOutQuart" },
             plugins: {
                 legend: { position: "top", align: "end", labels: { boxWidth: 10, usePointStyle: true, padding: 14 } },
-                tooltip: {
-                    backgroundColor: "rgba(10,10,26,.94)",
-                    borderColor: "rgba(229,9,20,.4)", borderWidth: 1,
-                    cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
-                    callbacks: {
-                        label: ctx => ctx.dataset.label.startsWith("ROI")
-                            ? `ROI: ${ctx.raw}x`
-                            : `Budget: $${ctx.raw}M`
-                    }
-                }
+                tooltip: { backgroundColor: "rgba(10,10,26,.94)", borderColor: "rgba(229,9,20,.4)", borderWidth: 1, cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
+                    callbacks: { label: ctx => ctx.dataset.label.startsWith("ROI") ? `ROI: ${ctx.raw}x` : `Budget: $${ctx.raw}M` } }
             },
             scales: {
                 x: { grid: { display: false }, ticks: { padding: 6 } },
-                y: {
-                    position: "left",
-                    title: { display: true, text: "ROI (x)" },
-                    grid: { color: "rgba(255,255,255,.04)" },
-                    ticks: { callback: v => v + "x" },
-                    beginAtZero: true
-                },
-                y1: {
-                    position: "right",
-                    title: { display: true, text: "Avg Budget ($M)" },
-                    grid: { drawOnChartArea: false },
-                    ticks: { callback: v => "$" + v + "M" },
-                    beginAtZero: true
-                }
+                y: { position: "left", title: { display: true, text: "ROI (x)" }, grid: { color: "rgba(255,255,255,.04)" }, ticks: { callback: v => v + "x" }, beginAtZero: true },
+                y1: { position: "right", title: { display: true, text: "Avg Budget ($M)" }, grid: { drawOnChartArea: false }, ticks: { callback: v => "$" + v + "M" }, beginAtZero: true }
             },
-            onClick: (event, elements) => {
-                if (elements.length > 0) {
-                    const index = elements[0].index;
-                    const genre = barChart.data.labels[index];
-                    navigateTo('audience', genre);
-                }
-            }
+            onClick: (event, elements) => { if (elements.length > 0) navigateTo('audience', barChart.data.labels[elements[0].index]); }
         }
     });
 
@@ -215,53 +157,19 @@ function renderCharts(stats) {
     if (scatterChart) scatterChart.destroy();
     scatterChart = new Chart(scatterCtx, {
         type: "bubble",
-        data: {
-            datasets: sorted.map((d, i) => ({
-                label: d.genre,
-                data: [{ x: d.avg_budget, y: d.avg_roi, r: Math.max(6, d.avg_revenue / 60) }],
-                backgroundColor: bgs[i],
-                borderColor: borders[i],
-                borderWidth: 1.5
-            }))
-        },
+        data: { datasets: sorted.map((d, i) => ({ label: d.genre, data: [{ x: d.avg_budget, y: d.avg_roi, r: Math.max(6, d.avg_revenue / 60) }], backgroundColor: bgs[i], borderColor: borders[i], borderWidth: 1.5 })) },
         options: {
             responsive: true, maintainAspectRatio: false,
             animation: { duration: 1100, easing: "easeOutQuart" },
-            onClick: (event, elements) => {
-                if (elements.length > 0) {
-                    const datasetIndex = elements[0].datasetIndex;
-                    const genre = scatterChart.data.datasets[datasetIndex].label;
-                    navigateTo('audience', genre);
-                }
-            },
+            onClick: (event, elements) => { if (elements.length > 0) navigateTo('audience', scatterChart.data.datasets[elements[0].datasetIndex].label); },
             plugins: {
                 legend: { position: "top", align: "end", labels: { boxWidth: 10, usePointStyle: true, padding: 14 } },
-                tooltip: {
-                    backgroundColor: "rgba(10,10,26,.94)",
-                    borderColor: "rgba(229,9,20,.4)", borderWidth: 1,
-                    cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
-                    callbacks: {
-                        title: ctx => ctx[0].dataset.label,
-                        label: ctx => [
-                            `Budget: $${ctx.raw.x}M`,
-                            `ROI: ${ctx.raw.y}x`,
-                            `Revenue: $${Math.round(ctx.raw.r * 60)}M`
-                        ]
-                    }
-                }
+                tooltip: { backgroundColor: "rgba(10,10,26,.94)", borderColor: "rgba(229,9,20,.4)", borderWidth: 1, cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
+                    callbacks: { title: ctx => ctx[0].dataset.label, label: ctx => [`Budget: $${ctx.raw.x}M`, `ROI: ${ctx.raw.y}x`, `Revenue: $${Math.round(ctx.raw.r * 60)}M`] } }
             },
             scales: {
-                x: {
-                    title: { display: true, text: "Avg Production Budget ($M)" },
-                    grid: { color: "rgba(255,255,255,.04)" },
-                    ticks: { callback: v => "$" + v + "M" }
-                },
-                y: {
-                    title: { display: true, text: "ROI (x)" },
-                    grid: { color: "rgba(255,255,255,.04)" },
-                    ticks: { callback: v => v + "x" },
-                    beginAtZero: true
-                }
+                x: { title: { display: true, text: "Avg Production Budget ($M)" }, grid: { color: "rgba(255,255,255,.04)" }, ticks: { callback: v => "$" + v + "M" } },
+                y: { title: { display: true, text: "ROI (x)" }, grid: { color: "rgba(255,255,255,.04)" }, ticks: { callback: v => v + "x" }, beginAtZero: true }
             }
         }
     });
@@ -279,31 +187,67 @@ function initChartSwitcher() {
     });
 }
 
+async function loadDashboardExtraCharts() {
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=genre_stats`);
+        const json = await res.json();
+        renderBudgetPieChart(json.data);
+        renderRevenueBarChart(json.data);
+    } catch (e) { console.error("Extra charts load failed:", e); }
+}
+
+function renderBudgetPieChart(stats) {
+    const ctx = document.getElementById("budgetPieChart");
+    if (!ctx) return;
+    const sorted = [...stats].sort((a, b) => b.avg_budget - a.avg_budget).slice(0, 8);
+    const labels = sorted.map(d => d.genre);
+    const colors = labels.map(g => colorFor(g).border);
+    if (budgetPieChart) budgetPieChart.destroy();
+    budgetPieChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: sorted.map(d => d.avg_budget), backgroundColor: colors.map(c => c + 'b3'), borderColor: colors, borderWidth: 2 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 8 } }, tooltip: { backgroundColor: 'rgba(10,10,26,.94)', borderColor: 'rgba(229,9,20,.4)', borderWidth: 1, callbacks: { label: ctx => `${ctx.label}: $${ctx.raw}M avg budget` } } } }
+    });
+}
+
+function renderRevenueBarChart(stats) {
+    const ctx = document.getElementById("revenueBarChart");
+    if (!ctx) return;
+    const sorted = [...stats].sort((a, b) => b.avg_revenue - a.avg_revenue).slice(0, 8);
+    const labels = sorted.map(d => d.genre);
+    const colors = labels.map(g => colorFor(g).border);
+    if (revenueBarChart) revenueBarChart.destroy();
+    revenueBarChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Avg Revenue ($M)', data: sorted.map(d => d.avg_revenue), backgroundColor: colors.map(c => c + 'b3'), borderColor: colors, borderWidth: 1.5, borderRadius: 6 }] },
+        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(10,10,26,.94)', borderColor: 'rgba(229,9,20,.4)', borderWidth: 1, callbacks: { label: ctx => `Revenue: $${ctx.raw}M` } } }, scales: { x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { callback: v => '$' + v + 'M' }, beginAtZero: true }, y: { grid: { display: false } } } }
+    });
+}
+
 /* ═══════════════════════════════════════════════════════════════
-   TOP MOVIES TABLE (real data)
+   TOP MOVIES TABLE
    ═══════════════════════════════════════════════════════════════ */
 async function loadTopMoviesTable() {
     try {
-        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=top_movies&limit=10`);
+        const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=top_movies&limit=10`);
         const json = await res.json();
         renderTopMoviesTable(json.data);
-    } catch (e) {
-        console.error("Top movies load failed:", e);
-    }
+    } catch (e) { console.error("Top movies load failed:", e); }
 }
 
 function renderTopMoviesTable(movies) {
     const tbody = document.querySelector("#genreTableCard tbody");
     if (!tbody || !movies.length) return;
+
     tbody.innerHTML = movies.map((m, i) => {
-        const genre = (m.genres || "").split("|")[0];
-        const color = colorFor(genre).border;
         const trend = m.roi >= 3 ? `<span class="up">▲ ${m.roi}x</span>` : `<span>${m.roi}x</span>`;
-        const poster = m.poster ? `<img src="${m.poster}" class="movie-thumb" alt="">` : "";
+        /* ✅ FIX: thumb img is hardcoded to 28×40, onerror hides broken images */
+        const thumb = m.poster
+            ? `<img src="${m.poster}" style="width:28px;height:40px;object-fit:cover;border-radius:4px;flex-shrink:0;display:block;" alt="" onerror="this.style.display='none'">`
+            : `<span style="width:28px;height:40px;border-radius:4px;background:rgba(229,9,20,.1);flex-shrink:0;display:inline-block;"></span>`;
         return `<tr class="clickable-row" data-index="${i}">
-          <td>${poster}<span>${m.title}${m.year ? ` (${m.year})` : ""}</span></td>
-          <td>$${m.budget_m}M</td>
-          <td>$${m.revenue_m}M</td>
+          <td>${thumb}<span>${m.title}${m.year ? ` (${m.year})` : ""}</span></td>
+          <td>$${m.budget_m}M</td><td>$${m.revenue_m}M</td>
           <td>${trend}</td>
           <td class="${m.vote_average >= 7 ? "up" : ""}">⭐ ${m.vote_average}</td>
         </tr>`;
@@ -311,10 +255,7 @@ function renderTopMoviesTable(movies) {
 
     tbody.querySelectorAll(".clickable-row").forEach(row => {
         row.style.cursor = "pointer";
-        row.addEventListener("click", () => {
-            const movie = movies[row.dataset.index];
-            showMovieModal(movie);
-        });
+        row.addEventListener("click", () => showMovieModal(movies[row.dataset.index]));
     });
 }
 
@@ -323,33 +264,19 @@ function renderTopMoviesTable(movies) {
    ═══════════════════════════════════════════════════════════════ */
 function initAudienceRing() {
     const ring = document.getElementById("audienceRing");
+    if (!ring) return;
     const pctEl = document.getElementById("audiencePct");
-    const pct = 85;
-    const circumference = 2 * Math.PI * 70;
-
+    const pct = 85, circumference = 2 * Math.PI * 70;
     const svg = ring.closest("svg");
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     const grad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-    grad.setAttribute("id", "ringGrad");
-    grad.setAttribute("x1", "0"); grad.setAttribute("y1", "0");
-    grad.setAttribute("x2", "1"); grad.setAttribute("y2", "1");
-    [["0", "#e50914"], ["1", "#ff3b30"]].forEach(([offset, color]) => {
-        const s = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-        s.setAttribute("offset", offset); s.setAttribute("stop-color", color);
-        grad.append(s);
-    });
+    grad.setAttribute("id", "ringGrad"); grad.setAttribute("x1","0"); grad.setAttribute("y1","0"); grad.setAttribute("x2","1"); grad.setAttribute("y2","1");
+    [["0","#e50914"],["1","#ff3b30"]].forEach(([o,c]) => { const s = document.createElementNS("http://www.w3.org/2000/svg","stop"); s.setAttribute("offset",o); s.setAttribute("stop-color",c); grad.append(s); });
     defs.append(grad); svg.prepend(defs);
     ring.style.stroke = "url(#ringGrad)";
-
-    setTimeout(() => {
-        ring.style.strokeDashoffset = circumference * (1 - pct / 100);
-    }, 400);
-
+    setTimeout(() => { ring.style.strokeDashoffset = circumference * (1 - pct / 100); }, 400);
     let cur = 0;
-    const iv = setInterval(() => {
-        pctEl.textContent = ++cur + "%";
-        if (cur >= pct) clearInterval(iv);
-    }, 18);
+    const iv = setInterval(() => { if (pctEl) pctEl.textContent = ++cur + "%"; if (cur >= pct) clearInterval(iv); }, 18);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -359,144 +286,124 @@ function initSimulator() {
     const btn = document.getElementById("analyzePitchBtn");
     const result = document.getElementById("simResult");
     const textarea = document.getElementById("pitchInput");
+    if (!btn) return;
 
     btn.addEventListener("click", async () => {
         const pitch = textarea.value.trim();
         if (!pitch || pitch.length < 10) {
-            textarea.focus();
-            textarea.style.borderColor = "#ef4444";
-            setTimeout(() => textarea.style.borderColor = "", 1500);
-            return;
+            textarea.focus(); textarea.style.borderColor = "#ef4444";
+            setTimeout(() => textarea.style.borderColor = "", 1500); return;
         }
-
         btn.innerHTML = '<span class="loader"></span> Analyzing...';
-        btn.disabled = true;
-        result.classList.add("hidden");
-
+        btn.disabled = true; result.classList.add("hidden");
         try {
-            const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=simulate`, {
+            const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=simulate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie('csrftoken') },
-                body: JSON.stringify({
-                    pitch,
-                    genre: document.getElementById("genreSelect").value,
-                    budget_tier: document.getElementById("budgetSelect").value
-                })
+                body: JSON.stringify({ pitch, genre: document.getElementById("genreSelect").value, budget_tier: document.getElementById("budgetSelect").value })
             });
             const json = await res.json();
-            const data = json.data || mockSimulate();
-
-            populateSimResult(data);
+            populateSimResult(json.data || mockSimulate());
             result.classList.remove("hidden");
         } catch (e) {
             console.error("Simulation error:", e);
-            populateSimResult(mockSimulate());
-            result.classList.remove("hidden");
+            populateSimResult(mockSimulate()); result.classList.remove("hidden");
         } finally {
-            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> Analyze Concept';
-            btn.disabled = false;
-            lucide.createIcons();
+            btn.innerHTML = '<i data-lucide="zap"></i> Analyze Concept';
+            btn.disabled = false; lucide.createIcons();
         }
     });
 }
 
 function populateSimResult(d) {
     document.querySelector(".sim-score strong").textContent = d.viability + "%";
-
     const metrics = document.querySelectorAll(".sim-metric-value");
     metrics[0].textContent = "$" + d.est_revenue_m + "M";
     metrics[1].textContent = d.est_roi + "x";
     metrics[2].textContent = d.risk;
     metrics[2].className = "sim-metric-value" + (d.risk === "High" ? " caution" : d.risk === "Medium" ? " warn" : " good");
-
     const genreBadge = document.querySelector(".sim-genre-badge");
     if (genreBadge) genreBadge.textContent = "Predicted Genre: " + d.predicted_genre;
 
-    const pctEl = document.getElementById("audiencePct");
-    if (pctEl && d.audience_match) {
-        const ring = document.getElementById("audienceRing");
-        const circumference = 2 * Math.PI * 70;
-        const pct = d.audience_match;
-        ring.style.transition = "stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)";
-        ring.style.strokeDashoffset = circumference * (1 - pct / 100);
-        animateCounter("#audiencePct", pct, 0, "%");
-    }
-
     const simFilmsWrap = document.getElementById("simFilms");
     if (simFilmsWrap && d.similar_films && d.similar_films.length) {
+        /* ✅ FIX: poster wrapped in a sized div so img can't break layout */
         simFilmsWrap.innerHTML = d.similar_films.map((f, i) => `
           <div class="sim-film-card" data-index="${i}">
-            ${f.poster ? `<img src="${f.poster}" alt="${f.title}" class="sim-film-poster">` : '<div class="sim-film-poster-placeholder"></div>'}
+            <div style="width:36px;height:52px;flex-shrink:0;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.06);">
+              ${f.poster ? `<img src="${f.poster}" alt="${f.title}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">` : ''}
+            </div>
             <div class="sim-film-info">
               <span class="sim-film-title">${f.title}${f.year ? ` (${f.year})` : ""}</span>
-              <span class="sim-film-meta">${f.genres.split("|").slice(0, 2).join(" · ")}</span>
-              ${f.revenue_m ? `<span class="sim-film-revenue">$${f.revenue_m}M revenue · ${f.similarity}% match</span>` : `<span class="sim-film-revenue">${f.similarity}% match</span>`}
+              <span class="sim-film-meta">${(f.genres||'').split("|").slice(0,2).join(" · ")}</span>
+              <span class="sim-film-revenue">${f.revenue_m ? `$${f.revenue_m}M · ` : ""}${f.similarity}% match</span>
             </div>
-          </div>
-        `).join("");
+          </div>`).join("");
 
         simFilmsWrap.querySelectorAll(".sim-film-card").forEach(card => {
-            card.addEventListener("click", () => {
-                const movie = d.similar_films[card.dataset.index];
-                showMovieModal(movie);
-            });
+            card.addEventListener("click", () => showMovieModal(d.similar_films[card.dataset.index]));
         });
-
         simFilmsWrap.parentElement.classList.remove("hidden");
     }
 }
 
 function mockSimulate() {
-    return {
-        viability: 79, risk: "Medium", predicted_genre: "Sci-Fi",
-        est_revenue_m: 310, est_roi: 2.6, audience_match: 82,
-        similar_films: []
-    };
+    return { viability: 79, risk: "Medium", predicted_genre: "Sci-Fi", est_revenue_m: 310, est_roi: 2.6, audience_match: 82, similar_films: [] };
 }
 
-/* ── Modal Logic ────────────────────────────────────────────── */
+/* ── Modal ───────────────────────────────────────────────────── */
 function initModal() {
     const modal = document.getElementById("movieModal");
     const closeBtn = document.getElementById("closeModal");
-
     if (!modal || !closeBtn) return;
-
     closeBtn.addEventListener("click", hideMovieModal);
-    modal.addEventListener("click", (e) => {
-        if (e.target === modal) hideMovieModal();
-    });
-
-    window.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && !modal.classList.contains("hidden")) hideMovieModal();
-    });
+    modal.addEventListener("click", e => { if (e.target === modal) hideMovieModal(); });
+    window.addEventListener("keydown", e => { if (e.key === "Escape" && !modal.classList.contains("hidden")) hideMovieModal(); });
 }
 
 function showMovieModal(m) {
     const modal = document.getElementById("movieModal");
-    if (!modal) return;
+    if (!modal || !m) return;
 
-    document.getElementById("modalPoster").src = m.poster || "";
-    document.getElementById("modalTitle").textContent = m.title;
-    document.getElementById("modalGenre").textContent = (m.genres || "").split("|").join(" · ");
-    document.getElementById("modalYear").textContent = m.year || "";
-    document.getElementById("modalOverview").textContent = m.overview || "No synopsis available for this title.";
+    const posterEl = document.getElementById("modalPoster");
+    /* ✅ FIX: always reset src first so previous large image never flashes */
+    posterEl.removeAttribute("src");
+    posterEl.style.display = m.poster ? "block" : "none";
+    if (m.poster) {
+        posterEl.onerror = () => { posterEl.style.display = "none"; };
+        posterEl.src = m.poster;
+    }
 
-    document.getElementById("modalBudget").textContent = m.budget_m ? `$${m.budget_m}M` : "N/A";
-    document.getElementById("modalRevenue").textContent = m.revenue_m ? `$${m.revenue_m}M` : "N/A";
-    document.getElementById("modalROI").textContent = m.roi ? `${m.roi}x` : "N/A";
-    document.getElementById("modalRating").textContent = m.vote_average || "0.0";
+    document.getElementById("modalTitle").textContent    = m.title || "";
+    document.getElementById("modalGenre").textContent    = (m.genres || "").split("|").join(" · ");
+    document.getElementById("modalYear").textContent     = m.year || "";
+    document.getElementById("modalOverview").textContent = m.overview || "No synopsis available.";
+    document.getElementById("modalBudget").textContent   = m.budget_m  ? `$${m.budget_m}M`  : "N/A";
+    document.getElementById("modalRevenue").textContent  = m.revenue_m ? `$${m.revenue_m}M` : "N/A";
+    document.getElementById("modalROI").textContent      = m.roi       ? `${m.roi}x`         : "N/A";
+    document.getElementById("modalRating").textContent   = m.vote_average || "0.0";
 
     modal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
     lucide.createIcons();
 }
 
+/* Normalise fields from movies-page API shape then hand off to showMovieModal */
+function showMovieDetailModal(movie) {
+    showMovieModal({
+        ...movie,
+        poster:    movie.poster || movie.poster_url || "",
+        budget_m:  movie.budget  ? Math.round(movie.budget  / 1_000_000) : (movie.budget_m  || 0),
+        revenue_m: movie.revenue ? Math.round(movie.revenue / 1_000_000) : (movie.revenue_m || 0),
+        roi: (movie.budget && movie.revenue && movie.budget > 0)
+            ? (movie.revenue / movie.budget).toFixed(1) : (movie.roi || null),
+        vote_average: movie.vote_average ? parseFloat(movie.vote_average).toFixed(1) : "0.0",
+    });
+}
+
 function hideMovieModal() {
     const modal = document.getElementById("movieModal");
-    if (modal) {
-        modal.classList.add("hidden");
-        document.body.style.overflow = "";
-    }
+    if (modal) { modal.classList.add("hidden"); document.body.style.overflow = ""; }
 }
 
 /* ── Sidebar ─────────────────────────────────────────────────── */
@@ -513,284 +420,119 @@ function initSidebar() {
 }
 
 function initNavigation() {
-    const backBtn = document.getElementById("backToDash");
-    if (backBtn) {
-        backBtn.addEventListener("click", () => navigateTo("dashboard"));
-    }
-    
-    const backBtnMovies = document.getElementById("backToDashFromMovies");
-    if (backBtnMovies) {
-        backBtnMovies.addEventListener("click", () => navigateTo("dashboard"));
-    }
-    
-    const backBtnStats = document.getElementById("backToDashFromStats");
-    if (backBtnStats) {
-        backBtnStats.addEventListener("click", () => navigateTo("dashboard"));
-    }
+    [["backToDash","dashboard"],["backToDashFromMovies","dashboard"],["backToDashFromStats","dashboard"],["backToDashFromStudio","dashboard"]].forEach(([id, target]) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("click", () => navigateTo(target));
+    });
 }
 
 async function navigateTo(view, genre = null) {
-    document.querySelectorAll(".nav-item").forEach(n => {
-        n.classList.toggle("active", n.dataset.page === view);
+    document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.page === view));
+    ["dashboard","studio","audience","movies","statistics"].forEach(v => {
+        const el = document.getElementById(v + "View");
+        if (el) el.classList.toggle("hidden", v !== view);
     });
-
-    document.getElementById("dashboardView").classList.toggle("hidden", view !== "dashboard");
-    document.getElementById("audienceView").classList.toggle("hidden", view !== "audience");
-    document.getElementById("moviesView").classList.toggle("hidden", view !== "movies");
-    document.getElementById("statisticsView").classList.toggle("hidden", view !== "statistics");
-
-    const pageTitle = document.querySelector(".page-title");
-    if (pageTitle) {
-        const titles = {
-            "dashboard": "Admin Dashboard",
-            "movies": "Movies Database",
-            "statistics": "Statistics & Analytics",
-            "audience": "Audience Analysis"
-        };
-        pageTitle.textContent = titles[view] || "Admin Dashboard";
-    }
-
-    if (view === "audience" && genre) {
-        await loadGenreAudience(genre);
-    } else if (view === "movies") {
-        await loadMoviesPage();
-    } else if (view === "statistics") {
-        await loadStatisticsPage();
-    }
+    const titles = { dashboard:"Admin Dashboard", studio:"Movie Analyzer Studio", movies:"Movies Database", statistics:"Statistics & Analytics", audience:"Audience Analysis" };
+    const pt = document.querySelector(".page-title");
+    if (pt) pt.textContent = titles[view] || "Admin Dashboard";
+    if (view === "audience" && genre) await loadGenreAudience(genre);
+    else if (view === "movies")       await loadMoviesPage();
+    else if (view === "statistics")   await loadStatisticsPage();
+    else if (view === "studio")       lucide.createIcons();
 }
 
 async function loadGenreAudience(genre) {
     const title = document.getElementById("audienceGenreTitle");
-    title.textContent = genre;
-
+    if (title) title.textContent = genre;
     const grid = document.querySelector(".audience-grid");
-    grid.style.opacity = "0";
-    setTimeout(() => grid.style.opacity = "1", 200);
+    if (grid) { grid.style.opacity = "0"; setTimeout(() => grid.style.opacity = "1", 200); }
 
     try {
         const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=genre_stats`);
         const allStats = await res.json();
         const stats = allStats.data.find(s => s.genre === genre);
-
         if (stats) {
-            document.getElementById("genreAvgRoi").textContent = stats.avg_roi + "x";
+            document.getElementById("genreAvgRoi").textContent    = stats.avg_roi + "x";
             document.getElementById("genreAvgBudget").textContent = "$" + stats.avg_budget + "M";
-
             const totalCount = allStats.data.reduce((acc, s) => acc + s.count, 0);
             const share = Math.round((stats.count / totalCount) * 100);
             document.getElementById("genreMarketShare").textContent = share + "%";
-            
             const insight = document.getElementById("genreInsight");
-            if (insight) {
-                const avgRevenue = stats.avg_revenue;
-                const roiClass = stats.avg_roi >= 3 ? "high" : stats.avg_roi >= 2 ? "medium" : "low";
-                insight.textContent = `${genre} films generate an average of $${avgRevenue}M in revenue with a ${stats.avg_roi}x ROI. This genre has ${stats.count} films in our database, representing ${share}% market share.`;
-            }
+            if (insight) insight.textContent = `${genre} films generate an average of $${stats.avg_revenue}M in revenue with a ${stats.avg_roi}x ROI. This genre has ${stats.count} films in our database, representing ${share}% market share.`;
         }
-    } catch (e) {
-        console.error("Genre stats load failed:", e);
-    }
+    } catch (e) { console.error("Genre stats load failed:", e); }
 
     try {
         const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=top_movies&genre=${encodeURIComponent(genre)}&limit=10`);
         const json = await res.json();
         renderVanguardTable(json.data);
-    } catch (e) {
-        console.error("Genre movies load failed:", e);
-    }
+    } catch (e) { console.error("Genre movies load failed:", e); }
 
-    try {
-        const demoRes = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=demographics`);
-        const demoJson = await demoRes.json();
-        
-        if (demoJson.status === 'ok' && demoJson.data.by_age_group) {
-            const ageGroups = demoJson.data.by_age_group;
-            const total = Object.values(ageGroups).reduce((a, b) => a + b, 0);
-            
-            const bars = document.querySelectorAll(".demo-fill");
-            const ageGroupKeys = ['18-24', '25-34', '35-44'];
-            
-            bars.forEach((bar, i) => {
-                const key = ageGroupKeys[i];
-                const count = ageGroups[key] || 0;
-                const pct = total > 0 ? (count / total * 100) : 0;
-                bar.style.width = "0%";
-                setTimeout(() => {
-                    bar.style.width = Math.min(100, pct * 1.5) + "%";
-                }, 500 + (i * 100));
-            });
-        } else {
-            const bars = document.querySelectorAll(".demo-fill");
-            bars.forEach(b => b.style.width = "0%");
-            setTimeout(() => {
-                bars[0].style.width = (70 + Math.random() * 20) + "%";
-                bars[1].style.width = (80 + Math.random() * 15) + "%";
-                bars[2].style.width = (40 + Math.random() * 30) + "%";
-            }, 500);
-        }
-    } catch (e) {
-        console.error("Demographics load failed:", e);
-        const bars = document.querySelectorAll(".demo-fill");
-        bars.forEach(b => b.style.width = "0%");
-        setTimeout(() => {
-            bars[0].style.width = (70 + Math.random() * 20) + "%";
-            bars[1].style.width = (80 + Math.random() * 15) + "%";
-            bars[2].style.width = (40 + Math.random() * 30) + "%";
-        }, 500);
-    }
+    const bars = document.querySelectorAll(".demo-fill");
+    bars.forEach(b => b.style.width = "0%");
+    setTimeout(() => {
+        if (bars[0]) bars[0].style.width = (70 + Math.random() * 20) + "%";
+        if (bars[1]) bars[1].style.width = (80 + Math.random() * 15) + "%";
+        if (bars[2]) bars[2].style.width = (40 + Math.random() * 30) + "%";
+    }, 500);
 }
 
 function renderVanguardTable(movies) {
     const tbody = document.querySelector("#genreVanguardTable tbody");
     if (!tbody) return;
     tbody.innerHTML = movies.map((m, i) => `
-        <tr class="clickable-row">
-            <td>${m.title}</td>
-            <td>${m.year || ""}</td>
-            <td class="up">${m.roi}x</td>
-            <td>$${m.revenue_m}M</td>
+        <tr class="clickable-row" data-index="${i}">
+            <td>${m.title}</td><td>${m.year||""}</td>
+            <td class="up">${m.roi}x</td><td>$${m.revenue_m}M</td>
             <td>⭐ ${m.vote_average}</td>
-        </tr>
-    `).join("");
-
-    tbody.querySelectorAll("tr").forEach((row, i) => {
+        </tr>`).join("");
+    tbody.querySelectorAll("tr.clickable-row").forEach(row => {
         row.style.cursor = "pointer";
-        row.addEventListener("click", () => showMovieModal(movies[i]));
+        row.addEventListener("click", () => showMovieModal(movies[row.dataset.index]));
     });
 }
 
-/* ── Search ──────────────────────────────────────────────────── */
+/* ── Search & Quick Actions ──────────────────────────────────── */
 function initSearch() {
-    const searchInput = document.getElementById("globalSearch");
-    if (searchInput) {
-        searchInput.addEventListener("keypress", async (e) => {
+    const globalSearch = document.getElementById("globalSearch");
+    if (globalSearch) {
+        globalSearch.addEventListener("keypress", async e => {
             if (e.key === "Enter") {
-                const query = searchInput.value.trim();
-                if (query) {
-                    currentMoviesSearch = query;
-                    currentMoviesPage = 1;
-                    await navigateTo("movies");
-                    const moviesSearchInput = document.getElementById("moviesSearch");
-                    if (moviesSearchInput) {
-                        moviesSearchInput.value = query;
-                    }
-                }
+                const q = globalSearch.value.trim();
+                if (q) { currentMoviesSearch = q; currentMoviesPage = 1; await navigateTo("movies"); const ms = document.getElementById("moviesSearch"); if (ms) ms.value = q; }
             }
         });
     }
-    
-    const quickStatsBtn = document.getElementById("quickStatsBtn");
-    if (quickStatsBtn) {
-        quickStatsBtn.addEventListener("click", () => {
-            navigateTo("statistics");
-        });
-    }
-    
-    const viewAllMoviesBtn = document.getElementById("viewAllMoviesBtn");
-    if (viewAllMoviesBtn) {
-        viewAllMoviesBtn.addEventListener("click", () => {
-            navigateTo("movies");
-        });
-    }
-    
-    const viewStatsBtn = document.getElementById("viewStatsBtn");
-    if (viewStatsBtn) {
-        viewStatsBtn.addEventListener("click", () => {
-            navigateTo("statistics");
-        });
-    }
-    
-    const analyzeGenreBtn = document.getElementById("analyzeGenreBtn");
-    if (analyzeGenreBtn) {
-        analyzeGenreBtn.addEventListener("click", async () => {
+    const map = {
+        "quickStatsBtn":    () => navigateTo("statistics"),
+        "viewAllMoviesBtn": () => navigateTo("movies"),
+        "viewStatsBtn":     () => navigateTo("statistics"),
+        "viewStudioBtn":    () => navigateTo("studio"),
+        "analyzeGenreBtn":  async () => {
             try {
-                const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=genre_stats`);
+                const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=genre_stats`);
                 const json = await res.json();
-                if (json.data && json.data.length > 0) {
-                    const topGenre = json.data.sort((a, b) => b.avg_roi - a.avg_roi)[0];
-                    navigateTo("audience", topGenre.genre);
-                }
-            } catch (e) {
-                console.error("Failed to load genre for analysis:", e);
-            }
-        });
-    }
-}
-
-/* ── Helpers ─────────────────────────────────────────────────── */
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
+                if (json.data?.length > 0) navigateTo("audience", [...json.data].sort((a,b) => b.avg_roi - a.avg_roi)[0].genre);
+            } catch (e) { console.error(e); }
         }
-    }
-    return cookieValue;
+    };
+    Object.entries(map).forEach(([id, fn]) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); });
 }
-
-/* ── Demo data (fallback) ─────────────────────────────────────── */
-const DEMO_GENRE_STATS = [
-    { genre: "Horror", avg_budget: 18, avg_revenue: 96, avg_roi: 5.3, count: 150 },
-    { genre: "Animation", avg_budget: 95, avg_revenue: 410, avg_roi: 4.3, count: 200 },
-    { genre: "Sci-Fi", avg_budget: 142, avg_revenue: 485, avg_roi: 3.4, count: 180 },
-    { genre: "Comedy", avg_budget: 42, avg_revenue: 135, avg_roi: 3.2, count: 300 },
-    { genre: "Action", avg_budget: 165, avg_revenue: 520, avg_roi: 3.2, count: 350 },
-    { genre: "Drama", avg_budget: 38, avg_revenue: 112, avg_roi: 2.9, count: 400 },
-];
 
 /* ═══════════════════════════════════════════════════════════════
    MOVIES PAGE
    ═══════════════════════════════════════════════════════════════ */
-let currentMoviesPage = 1;
-let currentMoviesSearch = '';
-let currentMoviesGenre = '';
+let currentMoviesPage = 1, currentMoviesSearch = '', currentMoviesGenre = '';
 
 function initMoviesPage() {
     const searchInput = document.getElementById("moviesSearch");
     const genreFilter = document.getElementById("moviesGenreFilter");
     const prevBtn = document.getElementById("prevPage");
     const nextBtn = document.getElementById("nextPage");
-
-    if (searchInput) {
-        let searchTimeout;
-        searchInput.addEventListener("input", (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                currentMoviesSearch = e.target.value.trim();
-                currentMoviesPage = 1;
-                loadMoviesPage();
-            }, 500);
-        });
-    }
-
-    if (genreFilter) {
-        genreFilter.addEventListener("change", (e) => {
-            currentMoviesGenre = e.target.value;
-            currentMoviesPage = 1;
-            loadMoviesPage();
-        });
-    }
-
-    if (prevBtn) {
-        prevBtn.addEventListener("click", () => {
-            if (currentMoviesPage > 1) {
-                currentMoviesPage--;
-                loadMoviesPage();
-            }
-        });
-    }
-
-    if (nextBtn) {
-        nextBtn.addEventListener("click", () => {
-            currentMoviesPage++;
-            loadMoviesPage();
-        });
-    }
+    if (searchInput) { let t; searchInput.addEventListener("input", e => { clearTimeout(t); t = setTimeout(() => { currentMoviesSearch = e.target.value.trim(); currentMoviesPage = 1; loadMoviesPage(); }, 500); }); }
+    if (genreFilter) genreFilter.addEventListener("change", e => { currentMoviesGenre = e.target.value; currentMoviesPage = 1; loadMoviesPage(); });
+    if (prevBtn) prevBtn.addEventListener("click", () => { if (currentMoviesPage > 1) { currentMoviesPage--; loadMoviesPage(); } });
+    if (nextBtn) nextBtn.addEventListener("click", () => { currentMoviesPage++; loadMoviesPage(); });
 }
 
 async function loadMoviesPage() {
@@ -800,244 +542,128 @@ async function loadMoviesPage() {
     const prevBtn = document.getElementById("prevPage");
     const nextBtn = document.getElementById("nextPage");
     const countEl = document.getElementById("moviesCount");
-
     if (!grid) return;
 
-    grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading movies...</div>';
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Loading movies...</div>';
 
     try {
         let url = `${API_BASE}/dashboard/movies/?page=${currentMoviesPage}`;
-        if (currentMoviesSearch) {
-            url += `&search=${encodeURIComponent(currentMoviesSearch)}`;
-        }
-        if (currentMoviesGenre) {
-            url += `&genre=${encodeURIComponent(currentMoviesGenre)}`;
-        }
+        if (currentMoviesSearch) url += `&search=${encodeURIComponent(currentMoviesSearch)}`;
+        if (currentMoviesGenre)  url += `&genre=${encodeURIComponent(currentMoviesGenre)}`;
 
-        const res = await fetch(url);
+        const res  = await fetch(url);
         const data = await res.json();
 
         if (data.movies && data.movies.length > 0) {
             grid.innerHTML = data.movies.map((movie, i) => {
                 const poster = movie.poster || movie.poster_url || '';
                 const genres = (movie.genres || '').split('|').slice(0, 3).join(' · ');
-                const rating = movie.vote_average ? `⭐ ${movie.vote_average.toFixed(1)}` : '';
-                
-                return `
-                    <div class="movie-card" data-index="${i}">
-                        ${poster ? `<img src="${poster}" alt="${movie.title}" class="movie-card-poster">` : '<div class="movie-card-poster-placeholder"></div>'}
-                        <div class="movie-card-body">
-                            <h3 class="movie-card-title">${movie.title}</h3>
-                            <p class="movie-card-genres">${genres}</p>
-                            ${rating ? `<span class="movie-card-rating">${rating}</span>` : ''}
-                        </div>
+                const rating = movie.vote_average ? `⭐ ${parseFloat(movie.vote_average).toFixed(1)}` : '';
+
+                /* ✅ KEY FIX: img lives INSIDE .movie-card-poster wrapper div.
+                   The wrapper has aspect-ratio:2/3 + overflow:hidden in CSS.
+                   The img fills that box via width/height:100% + object-fit:cover.
+                   NEVER give the img the class "movie-card-poster" directly. */
+                const posterHTML = poster
+                    ? `<div class="movie-card-poster">
+                         <img src="${poster}" alt="${movie.title}" loading="lazy"
+                              onerror="this.parentElement.style.background='rgba(229,9,20,.08)'">
+                       </div>`
+                    : `<div class="movie-card-poster movie-card-poster-placeholder"></div>`;
+
+                return `<div class="movie-card" data-index="${i}">
+                    ${posterHTML}
+                    <div class="movie-card-body">
+                        <h3 class="movie-card-title">${movie.title}</h3>
+                        <p class="movie-card-genres">${genres}</p>
+                        ${rating ? `<span class="movie-card-rating">${rating}</span>` : ''}
                     </div>
-                `;
+                </div>`;
             }).join('');
 
             grid.querySelectorAll('.movie-card').forEach((card, i) => {
-                card.style.cursor = 'pointer';
-                card.addEventListener('click', () => {
-                    const movie = data.movies[i];
-                    showMovieDetailModal(movie);
-                });
+                card.addEventListener('click', () => showMovieDetailModal(data.movies[i]));
             });
 
-            if (countEl) {
-                countEl.textContent = `Total: ${data.total}`;
-            }
-
+            if (countEl) countEl.textContent = `Total: ${data.total}`;
             if (pagination) {
                 pagination.style.display = 'flex';
-                pageInfo.textContent = `Page ${currentMoviesPage}`;
-                prevBtn.disabled = currentMoviesPage <= 1;
-                nextBtn.disabled = !data.has_more;
+                if (pageInfo) pageInfo.textContent = `Page ${currentMoviesPage}`;
+                if (prevBtn) prevBtn.disabled = currentMoviesPage <= 1;
+                if (nextBtn) nextBtn.disabled = !data.has_more;
             }
         } else {
-            grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">No movies found.</div>';
+            grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No movies found.</div>';
             if (pagination) pagination.style.display = 'none';
         }
-
         lucide.createIcons();
     } catch (e) {
         console.error("Movies load failed:", e);
-        grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">Failed to load movies.</div>';
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Failed to load movies.</div>';
     }
-}
-
-function showMovieDetailModal(movie) {
-    const modal = document.getElementById("movieModal");
-    if (!modal) return;
-
-    document.getElementById("modalPoster").src = movie.poster || movie.poster_url || '';
-    document.getElementById("modalTitle").textContent = movie.title;
-    document.getElementById("modalGenre").textContent = (movie.genres || '').split('|').join(' · ');
-    document.getElementById("modalYear").textContent = movie.year || '';
-    document.getElementById("modalOverview").textContent = movie.overview || movie.description || 'No synopsis available.';
-
-    const budget = movie.budget || 0;
-    const revenue = movie.revenue || 0;
-    const budgetM = budget > 0 ? `$${Math.round(budget / 1_000_000)}M` : 'N/A';
-    const revenueM = revenue > 0 ? `$${Math.round(revenue / 1_000_000)}M` : 'N/A';
-    const roi = (budget > 0 && revenue > 0) ? `${(revenue / budget).toFixed(1)}x` : 'N/A';
-
-    document.getElementById("modalBudget").textContent = budgetM;
-    document.getElementById("modalRevenue").textContent = revenueM;
-    document.getElementById("modalROI").textContent = roi;
-    document.getElementById("modalRating").textContent = movie.vote_average ? movie.vote_average.toFixed(1) : '0.0';
-
-    modal.classList.remove("hidden");
-    document.body.style.overflow = "hidden";
-    lucide.createIcons();
 }
 
 /* ═══════════════════════════════════════════════════════════════
    STATISTICS PAGE
    ═══════════════════════════════════════════════════════════════ */
 let genreDistChart, genreRevenueChart;
+function initStatisticsPage() {}
+function initStudioPage() {}
 
-function initStatisticsPage() {
-}
-
-async function loadStatisticsPage() {
-    await Promise.all([
-        loadStatsKPIs(),
-        loadStatsCharts()
-    ]);
-}
+async function loadStatisticsPage() { await Promise.all([loadStatsKPIs(), loadStatsCharts()]); }
 
 async function loadStatsKPIs() {
     try {
-        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=kpis`);
-        const json = await res.json();
-        const d = json.data;
-
+        const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=kpis`);
+        const json = await res.json(), d = json.data;
         document.getElementById("statsMovieCount").textContent = d.total_movies || 0;
-        document.getElementById("statsRevenue").textContent = `$${d.total_revenue_b || 0}B`;
-        document.getElementById("statsROI").textContent = `${d.avg_roi || 0}x`;
-        document.getElementById("statsRating").textContent = (d.avg_rating || 0).toFixed(1);
-    } catch (e) {
-        console.error("Stats KPIs load failed:", e);
-    }
+        document.getElementById("statsRevenue").textContent    = `$${d.total_revenue_b || 0}B`;
+        document.getElementById("statsROI").textContent        = `${d.avg_roi || 0}x`;
+        document.getElementById("statsRating").textContent     = (d.avg_rating || 0).toFixed(1);
+    } catch (e) { console.error("Stats KPIs load failed:", e); }
 }
 
 async function loadStatsCharts() {
     try {
-        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=genre_stats`);
-        const json = await res.json();
-        const stats = json.data;
-
-        renderGenreDistChart(stats);
-        renderGenreRevenueChart(stats);
-        renderGenreStatsTable(stats);
-    } catch (e) {
-        console.error("Stats charts load failed:", e);
-    }
+        const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=genre_stats`);
+        const json = await res.json(), stats = json.data;
+        renderGenreDistChart(stats); renderGenreRevenueChart(stats); renderGenreStatsTable(stats);
+    } catch (e) { console.error("Stats charts load failed:", e); }
 }
 
 function renderGenreDistChart(stats) {
-    const ctx = document.getElementById("genreDistChart");
-    if (!ctx) return;
-
-    const sorted = [...stats].sort((a, b) => b.count - a.count).slice(0, 10);
-    const labels = sorted.map(d => d.genre);
-    const counts = sorted.map(d => d.count);
-    const colors = labels.map(g => colorFor(g).border);
-
+    const ctx = document.getElementById("genreDistChart"); if (!ctx) return;
+    const sorted = [...stats].sort((a,b) => b.count - a.count).slice(0,10);
+    const labels = sorted.map(d => d.genre), colors = labels.map(g => colorFor(g).border);
     if (genreDistChart) genreDistChart.destroy();
-
-    genreDistChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels,
-            datasets: [{
-                data: counts,
-                backgroundColor: colors.map(c => c.replace(')', ', 0.7)').replace('rgb', 'rgba')),
-                borderColor: colors,
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'right', labels: { boxWidth: 12, padding: 10 } },
-                tooltip: {
-                    backgroundColor: 'rgba(10,10,26,.94)',
-                    borderColor: 'rgba(229,9,20,.4)',
-                    borderWidth: 1,
-                    callbacks: {
-                        label: ctx => `${ctx.label}: ${ctx.raw} movies`
-                    }
-                }
-            }
-        }
-    });
+    genreDistChart = new Chart(ctx, { type:'doughnut', data:{ labels, datasets:[{ data:sorted.map(d=>d.count), backgroundColor:colors.map(c=>c+'b3'), borderColor:colors, borderWidth:2 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'right',labels:{boxWidth:12,padding:10}}, tooltip:{backgroundColor:'rgba(10,10,26,.94)',borderColor:'rgba(229,9,20,.4)',borderWidth:1,callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} movies`}} } } });
 }
 
 function renderGenreRevenueChart(stats) {
-    const ctx = document.getElementById("genreRevenueChart");
-    if (!ctx) return;
-
-    const sorted = [...stats].sort((a, b) => b.avg_revenue - a.avg_revenue).slice(0, 10);
-    const labels = sorted.map(d => d.genre);
-    const revenues = sorted.map(d => d.avg_revenue);
-    const colors = labels.map(g => colorFor(g).border);
-
+    const ctx = document.getElementById("genreRevenueChart"); if (!ctx) return;
+    const sorted = [...stats].sort((a,b) => b.avg_revenue - a.avg_revenue).slice(0,10);
+    const labels = sorted.map(d => d.genre), colors = labels.map(g => colorFor(g).border);
     if (genreRevenueChart) genreRevenueChart.destroy();
-
-    genreRevenueChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Avg Revenue ($M)',
-                data: revenues,
-                backgroundColor: colors.map(c => c.replace(')', ', 0.7)').replace('rgb', 'rgba')),
-                borderColor: colors,
-                borderWidth: 1.5,
-                borderRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(10,10,26,.94)',
-                    borderColor: 'rgba(229,9,20,.4)',
-                    borderWidth: 1,
-                    callbacks: {
-                        label: ctx => `Revenue: $${ctx.raw}M`
-                    }
-                }
-            },
-            scales: {
-                x: { grid: { display: false } },
-                y: {
-                    grid: { color: 'rgba(255,255,255,.04)' },
-                    ticks: { callback: v => '$' + v + 'M' },
-                    beginAtZero: true
-                }
-            }
-        }
-    });
+    genreRevenueChart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Avg Revenue ($M)', data:sorted.map(d=>d.avg_revenue), backgroundColor:colors.map(c=>c+'b3'), borderColor:colors, borderWidth:1.5, borderRadius:6 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{backgroundColor:'rgba(10,10,26,.94)',borderColor:'rgba(229,9,20,.4)',borderWidth:1,callbacks:{label:ctx=>`Revenue: $${ctx.raw}M`}} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{callback:v=>'$'+v+'M'},beginAtZero:true} } } });
 }
 
 function renderGenreStatsTable(stats) {
-    const tbody = document.querySelector("#statsGenreTable tbody");
-    if (!tbody) return;
-
-    const sorted = [...stats].sort((a, b) => b.avg_roi - a.avg_roi);
-
-    tbody.innerHTML = sorted.map(s => `
-        <tr>
-            <td><strong>${s.genre}</strong></td>
-            <td>${s.count}</td>
-            <td>$${s.avg_budget}M</td>
-            <td>$${s.avg_revenue}M</td>
-            <td class="${s.avg_roi >= 3 ? 'up' : ''}">${s.avg_roi}x</td>
-        </tr>
-    `).join('');
+    const tbody = document.querySelector("#statsGenreTable tbody"); if (!tbody) return;
+    tbody.innerHTML = [...stats].sort((a,b) => b.avg_roi - a.avg_roi).map(s => `
+        <tr><td><strong>${s.genre}</strong></td><td>${s.count}</td><td>$${s.avg_budget}M</td><td>$${s.avg_revenue}M</td><td class="${s.avg_roi>=3?'up':''}">${s.avg_roi}x</td></tr>`).join('');
 }
+
+/* ── Helpers ─────────────────────────────────────────────────── */
+function getCookie(name) {
+    const found = (document.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith(name+'='));
+    return found ? decodeURIComponent(found.split('=')[1]) : null;
+}
+
+const DEMO_GENRE_STATS = [
+    { genre:"Horror",    avg_budget:18,  avg_revenue:96,  avg_roi:5.3, count:150 },
+    { genre:"Animation", avg_budget:95,  avg_revenue:410, avg_roi:4.3, count:200 },
+    { genre:"Sci-Fi",    avg_budget:142, avg_revenue:485, avg_roi:3.4, count:180 },
+    { genre:"Comedy",    avg_budget:42,  avg_revenue:135, avg_roi:3.2, count:300 },
+    { genre:"Action",    avg_budget:165, avg_revenue:520, avg_roi:3.2, count:350 },
+    { genre:"Drama",     avg_budget:38,  avg_revenue:112, avg_roi:2.9, count:400 },
+];
