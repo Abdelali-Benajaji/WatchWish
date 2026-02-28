@@ -373,66 +373,43 @@ class MLMovieAnalyzer:
             if hasattr(base_dir, 'parent'):
                 base_dir = base_dir.parent
             
-            csv_path = os.path.join(base_dir, 'data', 'dashboard_data2', 'metadata_simulator.csv')
-            if not os.path.exists(csv_path):
-                print(f"CSV file not found at: {csv_path}")
+            data_dir = os.path.join(base_dir, 'data', 'dashboard_data2')
+            vectorizer_path = os.path.join(data_dir, 'tfidf_vectorizer.pkl')
+            matrix_path = os.path.join(data_dir, 'tfidf_matrix.pkl')
+            processed_data_path = os.path.join(data_dir, 'processed_data.pkl')
+            
+            if not all(os.path.exists(p) for p in [vectorizer_path, matrix_path, processed_data_path]):
+                print("Missing one or more required .pkl files in dashboard_data2")
                 return False
             
-            print(f"Loading CSV from: {csv_path}")
-            cls._movies_df = pd.read_csv(csv_path)
-            print(f"Loaded {len(cls._movies_df)} movies")
+            print(f"Loading pre-trained models from {data_dir}...")
             
-            if 'description' not in cls._movies_df.columns:
-                cls._movies_df['description'] = ''
-            else:
-                cls._movies_df['description'] = cls._movies_df['description'].fillna('')
-            cls._movies_df['title'] = cls._movies_df['title'].fillna('')
-            cls._movies_df['genres'] = cls._movies_df['genres'].fillna('')
-            
-            print("Creating metadata soup...")
-            cls._movies_df['metadata_soup'] = cls._movies_df.apply(
-                lambda row: cls._create_metadata_soup(row), axis=1
-            )
-            
-            print("Training TF-IDF vectorizer...")
-            cls._tfidf_vectorizer = TfidfVectorizer(
-                max_features=5000,
-                stop_words='english',
-                ngram_range=(1, 2),
-                min_df=2,
-                max_df=0.8
-            )
-            
-            cls._tfidf_matrix = cls._tfidf_vectorizer.fit_transform(cls._movies_df['metadata_soup'])
+            with open(vectorizer_path, 'rb') as f:
+                cls._tfidf_vectorizer = pickle.load(f)
+                
+            with open(matrix_path, 'rb') as f:
+                cls._tfidf_matrix = pickle.load(f)
+                
+            with open(processed_data_path, 'rb') as f:
+                cls._movies_df = pickle.load(f)
+                
+            print(f"Loaded {len(cls._movies_df)} movies from processed_data.pkl")
             print(f"TF-IDF matrix shape: {cls._tfidf_matrix.shape}")
             
-            films_csv_path = os.path.join(base_dir, 'data', 'dashboard_data2', 'Films.csv')
+            films_csv_path = os.path.join(data_dir, 'Films.csv')
             if os.path.exists(films_csv_path):
                 print(f"Loading Films data from: {films_csv_path}")
                 cls._films_df = pd.read_csv(films_csv_path)
-                print(f"Loaded {len(cls._films_df)} films with full data")
-            else:
-                print(f"Films.csv not found at: {films_csv_path}")
             
             cls._initialized = True
-            print("ML Analyzer initialized successfully!")
+            print("ML Analyzer initialized successfully with pre-trained .pkl models!")
             return True
             
         except Exception as e:
             print(f"ML Analyzer initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-    
-    @staticmethod
-    def _create_metadata_soup(row):
-        description = str(row.get('description', ''))
-        title = str(row.get('title', ''))
-        genres = str(row.get('genres', ''))
-        
-        description = re.sub(r'[^\w\s]', ' ', description.lower())
-        title = re.sub(r'[^\w\s]', ' ', title.lower())
-        genres = genres.replace('|', ' ').lower()
-        
-        return f"{title} {title} {description} {genres} {genres}"
     
     @classmethod
     def analyze_movie_concept(cls, concept_text, top_n=5):
@@ -679,6 +656,8 @@ class DashboardAnalytics:
                     'year': year,
                     'genres': str(row.get('genres', '')),
                     'poster': str(row.get('poster_url', '')),
+                    'budget': int(row['budget']),
+                    'revenue': int(row['revenue']),
                     'budget_m': round(row['budget'] / 1_000_000, 0),
                     'revenue_m': round(row['revenue'] / 1_000_000, 0),
                     'roi': round(row['roi'], 1),

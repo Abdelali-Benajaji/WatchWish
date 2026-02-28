@@ -1,8 +1,12 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 import json
+
+# ── Module-level cache for audience profile data (loaded once) ──
+_audience_cache = {}  # genre -> {'age': [...], 'gender': [...], 'occupation': [...]}
+_audience_cache_loaded = False
 from .services import MovieService
 from .decorators import admin_required
 
@@ -295,26 +299,68 @@ def admin_dashboard(request):
 
 @admin_required
 def admin_movies_list(request):
-    page = int(request.GET.get('page', 1))
-    search = request.GET.get('search', '').strip()
-    genre = request.GET.get('genre', '').strip()
+    import pandas as pd
+    from .services import DashboardAnalytics
     
+    page = int(request.GET.get('page', 1))
+    search = request.GET.get('search', '').strip().lower()
+    genre = request.GET.get('genre', '').strip()
     limit = 20
     skip = (page - 1) * limit
-    
+
+    # Try to use Films.csv data (has full financial data)
+    if DashboardAnalytics._films_df is None:
+        DashboardAnalytics.load_data()
+
+    if DashboardAnalytics._films_df is not None:
+        df = DashboardAnalytics._films_df.copy()
+        if search:
+            df = df[df['title'].str.lower().str.contains(search, na=False)]
+        if genre:
+            df = df[df['genres'].str.contains(genre, case=False, na=False)]
+        
+        total_count = len(df)
+        page_df = df.iloc[skip:skip + limit]
+        movies = []
+        for _, row in page_df.iterrows():
+            budget = int(row['budget']) if pd.notna(row.get('budget')) and row['budget'] > 0 else 0
+            revenue = int(row['revenue']) if pd.notna(row.get('revenue')) and row['revenue'] > 0 else 0
+            year = str(row.get('release_date', ''))[:4] if pd.notna(row.get('release_date')) else ''
+            movies.append({
+                'title': str(row['title']),
+                'genres': str(row.get('genres', '')),
+                'genre_list': str(row.get('genres', '')).split('|'),
+                'poster': str(row.get('poster_url', '')),
+                'poster_url': str(row.get('poster_url', '')),
+                'vote_average': round(float(row['vote_average']), 1) if pd.notna(row.get('vote_average')) else 0,
+                'budget': budget,
+                'revenue': revenue,
+                'budget_m': round(budget / 1_000_000, 0) if budget > 0 else 0,
+                'revenue_m': round(revenue / 1_000_000, 0) if revenue > 0 else 0,
+                'roi': round(revenue / budget, 1) if budget > 0 and revenue > 0 else 0,
+                'year': year,
+                'overview': str(row.get('description', '')),
+            })
+        return JsonResponse({
+            'movies': movies,
+            'page': page,
+            'total': total_count,
+            'has_more': total_count > skip + limit
+        })
+
+    # Fallback to MongoDB
     if search:
         movies = MovieService.search_movies(search, limit=1000)
     elif genre:
         movies = MovieService.get_movies_by_genre(genre, limit=1000)
     else:
         movies = MovieService.get_all_movies(limit=1000, skip=skip)
-    
+
     total_count = len(movies)
     movies_page = movies[skip:skip + limit] if skip > 0 else movies[:limit]
-    
     for movie in movies_page:
         movie['genre_list'] = movie.get('genres', '').split('|')
-    
+
     return JsonResponse({
         'movies': movies_page,
         'page': page,
@@ -486,6 +532,8 @@ def admin_dashboard_api(request):
                         'year': year,
                         'genres': film['genres'],
                         'poster': film.get('poster', ''),
+                        'budget': budget,
+                        'revenue': revenue,
                         'budget_m': round(budget / 1_000_000, 0) if budget > 0 else 0,
                         'revenue_m': round(revenue / 1_000_000, 0) if revenue > 0 else 0,
                         'vote_average': film.get('vote_average', 0),
@@ -498,10 +546,17 @@ def admin_dashboard_api(request):
                 avg_roi = sum(f['roi'] for f in similar_films if f['roi'] > 0) / max(1, len([f for f in similar_films if f['roi'] > 0]))
                 avg_similarity = sum(f['similarity'] for f in similar_films) / max(1, len(similar_films))
                 
-                viability = min(95, int(avg_similarity * 0.7 + (avg_roi * 5)))
+                # avg_similarity is already 0-100 (it's cosine * 100)
+                # avg_roi is the return multiple (typically 1–10+)
+                # We blend them: similarity is primary (50-80% weight), ROI provides a bonus
+                roi_score = min(30, avg_roi * 3)   # cap ROI bonus at 30 pts
+                viability = min(95, int(avg_similarity * 0.7 + roi_score))
+                # Ensure a minimum baseline so completely different-genre films still show Medium
+                if viability < 30 and avg_similarity > 5:
+                    viability = 30 + int(avg_similarity)
                 est_revenue_m = int(avg_revenue * 1.2)
                 est_roi = round(avg_roi * 0.9, 1)
-                risk = "Low" if viability > 75 else "Medium" if viability > 60 else "High"
+                risk = "Low" if viability > 70 else "Medium" if viability > 45 else "High"
                 audience_match = min(95, int(avg_similarity))
                 
                 genre_counts = {}
@@ -593,5 +648,79 @@ def admin_dashboard_api(request):
             'status': 'ok',
             'data': demographics
         })
-    
+
+    elif endpoint == 'audience_profile':
+        global _audience_cache, _audience_cache_loaded
+        genre = request.GET.get('genre', '').strip()
+        try:
+            import pandas as pd, os
+            from django.conf import settings
+
+            if not _audience_cache_loaded:
+                base_dir = settings.BASE_DIR
+                if hasattr(base_dir, 'parent'):
+                    base_dir = base_dir.parent
+                data_dir = os.path.join(base_dir, 'data', 'dashboard_data2')
+
+                users_df = pd.read_csv(os.path.join(data_dir, 'users.csv'))
+                films_df = pd.read_csv(os.path.join(data_dir, 'Films.csv'),
+                                       usecols=['movieId', 'genres'],
+                                       dtype={'movieId': str})
+                ratings_df = pd.read_csv(os.path.join(data_dir, 'ratings.csv'),
+                                         usecols=['userId', 'movieId'],
+                                         dtype={'userId': int, 'movieId': str})
+
+                films_df['movieId'] = films_df['movieId'].astype(str)
+                # Explode genres so each row = (movieId, single_genre)
+                films_df = films_df.dropna(subset=['genres'])
+                films_df = films_df.assign(genre=films_df['genres'].str.split('|')).explode('genre')
+                films_df['genre'] = films_df['genre'].str.strip()
+
+                # Build genre->userId mapping
+                merged = ratings_df.merge(films_df[['movieId', 'genre']], on='movieId', how='inner')
+                merged = merged.merge(users_df, on='userId', how='inner')
+
+                age_order = ['Under 18', '18-24', '25-34', '35-44', '45-49', '50-55', '56+']
+
+                def build_profile(df_sub):
+                    age_order = ['Under 18', '18-24', '25-34', '35-44', '45-49', '50-55', '56+']
+                    # Age grouped by gender
+                    age_gender = df_sub.groupby(['age_group', 'gender']).size().unstack(fill_value=0)
+                    age_data = []
+                    for ag in age_order:
+                        if ag in age_gender.index:
+                            row = age_gender.loc[ag]
+                            age_data.append({
+                                'label': ag,
+                                'male': int(row.get('Male', 0)),
+                                'female': int(row.get('Female', 0)),
+                            })
+                    # Gender totals
+                    gen_c = df_sub['gender'].value_counts()
+                    tot_g = gen_c.sum()
+                    gender_data = [{'label': g, 'count': int(c),
+                                    'pct': round(int(c) / tot_g * 100, 1)}
+                                   for g, c in gen_c.items()]
+                    # Occupations (top 10)
+                    occ_c = df_sub['occupation'].value_counts().head(10)
+                    occ_data = [{'label': o, 'count': int(c)} for o, c in occ_c.items()]
+                    return {'age': age_data, 'gender': gender_data,
+                            'occupation': occ_data, 'total_users': int(df_sub['userId'].nunique())}
+
+                # Pre-build all genres
+                for g in merged['genre'].unique():
+                    g_sub = merged[merged['genre'] == g]
+                    _audience_cache[g] = build_profile(g_sub)
+
+                # Also store overall (no genre filter)
+                _audience_cache['__all__'] = build_profile(merged)
+                _audience_cache_loaded = True
+
+            key = genre if genre in _audience_cache else '__all__'
+            data = _audience_cache.get(key, _audience_cache.get('__all__', {}))
+            return JsonResponse({'status': 'ok', 'data': data})
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
     return JsonResponse({'error': 'Invalid endpoint'}, status=400)

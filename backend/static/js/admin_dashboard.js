@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initStudioPage();
     await loadRealData();
     initAudienceRing();
+    initAudiencePage();
 });
 
 async function loadRealData() {
@@ -70,23 +71,23 @@ function animateCounter(sel, target, decimals, suffix = "", prefix = "") {
 let barChart, scatterChart, budgetPieChart, revenueBarChart;
 
 const PALETTE = {
-    "Action":          { bg: "rgba(229,9,20,.7)",    border: "#e50914" },
-    "Adventure":       { bg: "rgba(255,59,48,.7)",   border: "#ff3b30" },
-    "Animation":       { bg: "rgba(255,107,107,.7)", border: "#ff6b6b" },
-    "Comedy":          { bg: "rgba(251,191,36,.7)",  border: "#fbbf24" },
-    "Crime":           { bg: "rgba(249,115,22,.7)",  border: "#f97316" },
-    "Documentary":     { bg: "rgba(161,161,170,.7)", border: "#a1a1aa" },
-    "Drama":           { bg: "rgba(236,72,153,.7)",  border: "#ec4899" },
-    "Fantasy":         { bg: "rgba(178,7,16,.7)",    border: "#b20710" },
-    "Horror":          { bg: "rgba(153,27,27,.7)",   border: "#991b1b" },
-    "Musical":         { bg: "rgba(245,158,11,.7)",  border: "#f59e0b" },
-    "Mystery":         { bg: "rgba(124,58,237,.7)",  border: "#7c3aed" },
-    "Romance":         { bg: "rgba(244,63,94,.7)",   border: "#f43f5e" },
-    "Sci-Fi":          { bg: "rgba(239,68,68,.7)",   border: "#ef4444" },
-    "Science Fiction": { bg: "rgba(239,68,68,.7)",   border: "#ef4444" },
-    "Thriller":        { bg: "rgba(234,179,8,.7)",   border: "#eab308" },
-    "War":             { bg: "rgba(220,38,38,.7)",   border: "#dc2626" },
-    "Western":         { bg: "rgba(180,83,9,.7)",    border: "#b45309" },
+    "Action": { bg: "rgba(229,9,20,.7)", border: "#e50914" },
+    "Adventure": { bg: "rgba(255,59,48,.7)", border: "#ff3b30" },
+    "Animation": { bg: "rgba(255,107,107,.7)", border: "#ff6b6b" },
+    "Comedy": { bg: "rgba(251,191,36,.7)", border: "#fbbf24" },
+    "Crime": { bg: "rgba(249,115,22,.7)", border: "#f97316" },
+    "Documentary": { bg: "rgba(161,161,170,.7)", border: "#a1a1aa" },
+    "Drama": { bg: "rgba(236,72,153,.7)", border: "#ec4899" },
+    "Fantasy": { bg: "rgba(178,7,16,.7)", border: "#b20710" },
+    "Horror": { bg: "rgba(153,27,27,.7)", border: "#991b1b" },
+    "Musical": { bg: "rgba(245,158,11,.7)", border: "#f59e0b" },
+    "Mystery": { bg: "rgba(124,58,237,.7)", border: "#7c3aed" },
+    "Romance": { bg: "rgba(244,63,94,.7)", border: "#f43f5e" },
+    "Sci-Fi": { bg: "rgba(239,68,68,.7)", border: "#ef4444" },
+    "Science Fiction": { bg: "rgba(239,68,68,.7)", border: "#ef4444" },
+    "Thriller": { bg: "rgba(234,179,8,.7)", border: "#eab308" },
+    "War": { bg: "rgba(220,38,38,.7)", border: "#dc2626" },
+    "Western": { bg: "rgba(180,83,9,.7)", border: "#b45309" },
 };
 
 function colorFor(genre) {
@@ -113,15 +114,15 @@ async function loadCharts() {
 
 function renderCharts(stats) {
     chartDefaults();
-    const sorted  = [...stats].sort((a, b) => b.avg_roi - a.avg_roi).slice(0, 12);
-    const labels  = sorted.map(d => d.genre);
-    const rois    = sorted.map(d => d.avg_roi);
+    const sorted = [...stats].sort((a, b) => b.avg_roi - a.avg_roi).slice(0, 12);
+    const labels = sorted.map(d => d.genre);
+    const rois = sorted.map(d => d.avg_roi);
     const budgets = sorted.map(d => d.avg_budget);
-    const bgs     = labels.map(g => colorFor(g).bg);
+    const bgs = labels.map(g => colorFor(g).bg);
     const borders = labels.map(g => colorFor(g).border);
 
     const barCtx = document.getElementById("roiBarChart").getContext("2d");
-    const grads  = bgs.map((bg, i) => {
+    const grads = bgs.map((bg, i) => {
         const g = barCtx.createLinearGradient(0, 0, 0, 280);
         g.addColorStop(0, borders[i]);
         g.addColorStop(1, bg.replace(".7", ".1"));
@@ -131,18 +132,22 @@ function renderCharts(stats) {
     if (barChart) barChart.destroy();
     barChart = new Chart(barCtx, {
         type: "bar",
-        data: { labels, datasets: [
-            { label: "ROI (x)", data: rois, backgroundColor: grads, borderColor: borders, borderWidth: 1.5, borderRadius: 6, barPercentage: .6, yAxisID: "y" },
-            { label: "Avg Budget ($M)", data: budgets, backgroundColor: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.12)", borderWidth: 1, borderRadius: 6, barPercentage: .6, yAxisID: "y1" }
-        ]},
+        data: {
+            labels, datasets: [
+                { label: "ROI (x)", data: rois, backgroundColor: grads, borderColor: borders, borderWidth: 1.5, borderRadius: 6, barPercentage: .6, yAxisID: "y" },
+                { label: "Avg Budget ($M)", data: budgets, backgroundColor: "rgba(255,255,255,.06)", borderColor: "rgba(255,255,255,.12)", borderWidth: 1, borderRadius: 6, barPercentage: .6, yAxisID: "y1" }
+            ]
+        },
         options: {
             responsive: true, maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
             animation: { duration: 900, easing: "easeOutQuart" },
             plugins: {
                 legend: { position: "top", align: "end", labels: { boxWidth: 10, usePointStyle: true, padding: 14 } },
-                tooltip: { backgroundColor: "rgba(10,10,26,.94)", borderColor: "rgba(229,9,20,.4)", borderWidth: 1, cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
-                    callbacks: { label: ctx => ctx.dataset.label.startsWith("ROI") ? `ROI: ${ctx.raw}x` : `Budget: $${ctx.raw}M` } }
+                tooltip: {
+                    backgroundColor: "rgba(10,10,26,.94)", borderColor: "rgba(229,9,20,.4)", borderWidth: 1, cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
+                    callbacks: { label: ctx => ctx.dataset.label.startsWith("ROI") ? `ROI: ${ctx.raw}x` : `Budget: $${ctx.raw}M` }
+                }
             },
             scales: {
                 x: { grid: { display: false }, ticks: { padding: 6 } },
@@ -164,8 +169,10 @@ function renderCharts(stats) {
             onClick: (event, elements) => { if (elements.length > 0) navigateTo('audience', scatterChart.data.datasets[elements[0].datasetIndex].label); },
             plugins: {
                 legend: { position: "top", align: "end", labels: { boxWidth: 10, usePointStyle: true, padding: 14 } },
-                tooltip: { backgroundColor: "rgba(10,10,26,.94)", borderColor: "rgba(229,9,20,.4)", borderWidth: 1, cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
-                    callbacks: { title: ctx => ctx[0].dataset.label, label: ctx => [`Budget: $${ctx.raw.x}M`, `ROI: ${ctx.raw.y}x`, `Revenue: $${Math.round(ctx.raw.r * 60)}M`] } }
+                tooltip: {
+                    backgroundColor: "rgba(10,10,26,.94)", borderColor: "rgba(229,9,20,.4)", borderWidth: 1, cornerRadius: 10, padding: 12, titleFont: { weight: 600 },
+                    callbacks: { title: ctx => ctx[0].dataset.label, label: ctx => [`Budget: $${ctx.raw.x}M`, `ROI: ${ctx.raw.y}x`, `Revenue: $${Math.round(ctx.raw.r * 60)}M`] }
+                }
             },
             scales: {
                 x: { title: { display: true, text: "Avg Production Budget ($M)" }, grid: { color: "rgba(255,255,255,.04)" }, ticks: { callback: v => "$" + v + "M" } },
@@ -227,6 +234,13 @@ function renderRevenueBarChart(stats) {
 /* ═══════════════════════════════════════════════════════════════
    TOP MOVIES TABLE
    ═══════════════════════════════════════════════════════════════ */
+function formatMoney(raw, m_rounded) {
+    if (raw == null || raw === 0) return "N/A";
+    if (raw >= 1000000) return `$${m_rounded}M`;
+    if (raw >= 1000) return `$${Math.round(raw / 1000)}K`;
+    return `$${raw}`;
+}
+
 async function loadTopMoviesTable() {
     try {
         const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=top_movies&limit=10`);
@@ -241,13 +255,16 @@ function renderTopMoviesTable(movies) {
 
     tbody.innerHTML = movies.map((m, i) => {
         const trend = m.roi >= 3 ? `<span class="up">▲ ${m.roi}x</span>` : `<span>${m.roi}x</span>`;
-        /* ✅ FIX: thumb img is hardcoded to 28×40, onerror hides broken images */
         const thumb = m.poster
             ? `<img src="${m.poster}" style="width:28px;height:40px;object-fit:cover;border-radius:4px;flex-shrink:0;display:block;" alt="" onerror="this.style.display='none'">`
             : `<span style="width:28px;height:40px;border-radius:4px;background:rgba(229,9,20,.1);flex-shrink:0;display:inline-block;"></span>`;
+
+        const b = (m.budget != null) ? formatMoney(m.budget, m.budget_m) : (m.budget_m ? `$${m.budget_m}M` : "N/A");
+        const r = (m.revenue != null) ? formatMoney(m.revenue, m.revenue_m) : (m.revenue_m ? `$${m.revenue_m}M` : "N/A");
+
         return `<tr class="clickable-row" data-index="${i}">
           <td>${thumb}<span>${m.title}${m.year ? ` (${m.year})` : ""}</span></td>
-          <td>$${m.budget_m}M</td><td>$${m.revenue_m}M</td>
+          <td>${b}</td><td>${r}</td>
           <td>${trend}</td>
           <td class="${m.vote_average >= 7 ? "up" : ""}">⭐ ${m.vote_average}</td>
         </tr>`;
@@ -270,8 +287,8 @@ function initAudienceRing() {
     const svg = ring.closest("svg");
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     const grad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-    grad.setAttribute("id", "ringGrad"); grad.setAttribute("x1","0"); grad.setAttribute("y1","0"); grad.setAttribute("x2","1"); grad.setAttribute("y2","1");
-    [["0","#e50914"],["1","#ff3b30"]].forEach(([o,c]) => { const s = document.createElementNS("http://www.w3.org/2000/svg","stop"); s.setAttribute("offset",o); s.setAttribute("stop-color",c); grad.append(s); });
+    grad.setAttribute("id", "ringGrad"); grad.setAttribute("x1", "0"); grad.setAttribute("y1", "0"); grad.setAttribute("x2", "1"); grad.setAttribute("y2", "1");
+    [["0", "#e50914"], ["1", "#ff3b30"]].forEach(([o, c]) => { const s = document.createElementNS("http://www.w3.org/2000/svg", "stop"); s.setAttribute("offset", o); s.setAttribute("stop-color", c); grad.append(s); });
     defs.append(grad); svg.prepend(defs);
     ring.style.stroke = "url(#ringGrad)";
     setTimeout(() => { ring.style.strokeDashoffset = circumference * (1 - pct / 100); }, 400);
@@ -300,7 +317,7 @@ function initSimulator() {
             const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=simulate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie('csrftoken') },
-                body: JSON.stringify({ pitch, genre: document.getElementById("genreSelect").value, budget_tier: document.getElementById("budgetSelect").value })
+                body: JSON.stringify({ pitch })
             });
             const json = await res.json();
             populateSimResult(json.data || mockSimulate());
@@ -328,17 +345,20 @@ function populateSimResult(d) {
     const simFilmsWrap = document.getElementById("simFilms");
     if (simFilmsWrap && d.similar_films && d.similar_films.length) {
         /* ✅ FIX: poster wrapped in a sized div so img can't break layout */
-        simFilmsWrap.innerHTML = d.similar_films.map((f, i) => `
+        simFilmsWrap.innerHTML = d.similar_films.map((f, i) => {
+            const revFormat = (f.revenue != null) ? formatMoney(f.revenue, f.revenue_m) : (f.revenue_m ? `$${f.revenue_m}M` : "");
+            return `
           <div class="sim-film-card" data-index="${i}">
             <div style="width:36px;height:52px;flex-shrink:0;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.06);">
               ${f.poster ? `<img src="${f.poster}" alt="${f.title}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">` : ''}
             </div>
             <div class="sim-film-info">
               <span class="sim-film-title">${f.title}${f.year ? ` (${f.year})` : ""}</span>
-              <span class="sim-film-meta">${(f.genres||'').split("|").slice(0,2).join(" · ")}</span>
-              <span class="sim-film-revenue">${f.revenue_m ? `$${f.revenue_m}M · ` : ""}${f.similarity}% match</span>
+              <span class="sim-film-meta">${(f.genres || '').split("|").slice(0, 2).join(" · ")}</span>
+              <span class="sim-film-revenue">${revFormat ? `${revFormat} · ` : ""}${f.similarity}% match</span>
             </div>
-          </div>`).join("");
+          </div>`
+        }).join("");
 
         simFilmsWrap.querySelectorAll(".sim-film-card").forEach(card => {
             card.addEventListener("click", () => showMovieModal(d.similar_films[card.dataset.index]));
@@ -374,14 +394,16 @@ function showMovieModal(m) {
         posterEl.src = m.poster;
     }
 
-    document.getElementById("modalTitle").textContent    = m.title || "";
-    document.getElementById("modalGenre").textContent    = (m.genres || "").split("|").join(" · ");
-    document.getElementById("modalYear").textContent     = m.year || "";
+    document.getElementById("modalTitle").textContent = m.title || "";
+    document.getElementById("modalGenre").textContent = (m.genres || "").split("|").join(" · ");
+    document.getElementById("modalYear").textContent = m.year || "";
     document.getElementById("modalOverview").textContent = m.overview || "No synopsis available.";
-    document.getElementById("modalBudget").textContent   = m.budget_m  ? `$${m.budget_m}M`  : "N/A";
-    document.getElementById("modalRevenue").textContent  = m.revenue_m ? `$${m.revenue_m}M` : "N/A";
-    document.getElementById("modalROI").textContent      = m.roi       ? `${m.roi}x`         : "N/A";
-    document.getElementById("modalRating").textContent   = m.vote_average || "0.0";
+
+    document.getElementById("modalBudget").textContent = (m.budget != null) ? formatMoney(m.budget, m.budget_m) : (m.budget_m ? `$${m.budget_m}M` : "N/A");
+    document.getElementById("modalRevenue").textContent = (m.revenue != null) ? formatMoney(m.revenue, m.revenue_m) : (m.revenue_m ? `$${m.revenue_m}M` : "N/A");
+
+    document.getElementById("modalROI").textContent = m.roi ? `${m.roi}x` : "N/A";
+    document.getElementById("modalRating").textContent = m.vote_average || "0.0";
 
     modal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
@@ -392,8 +414,8 @@ function showMovieModal(m) {
 function showMovieDetailModal(movie) {
     showMovieModal({
         ...movie,
-        poster:    movie.poster || movie.poster_url || "",
-        budget_m:  movie.budget  ? Math.round(movie.budget  / 1_000_000) : (movie.budget_m  || 0),
+        poster: movie.poster || movie.poster_url || "",
+        budget_m: movie.budget ? Math.round(movie.budget / 1_000_000) : (movie.budget_m || 0),
         revenue_m: movie.revenue ? Math.round(movie.revenue / 1_000_000) : (movie.revenue_m || 0),
         roi: (movie.budget && movie.revenue && movie.budget > 0)
             ? (movie.revenue / movie.budget).toFixed(1) : (movie.roi || null),
@@ -420,7 +442,7 @@ function initSidebar() {
 }
 
 function initNavigation() {
-    [["backToDash","dashboard"],["backToDashFromMovies","dashboard"],["backToDashFromStats","dashboard"],["backToDashFromStudio","dashboard"]].forEach(([id, target]) => {
+    [["backToDash", "dashboard"], ["backToDashFromMovies", "dashboard"], ["backToDashFromStats", "dashboard"], ["backToDashFromStudio", "dashboard"]].forEach(([id, target]) => {
         const el = document.getElementById(id);
         if (el) el.addEventListener("click", () => navigateTo(target));
     });
@@ -428,53 +450,149 @@ function initNavigation() {
 
 async function navigateTo(view, genre = null) {
     document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.page === view));
-    ["dashboard","studio","audience","movies","statistics"].forEach(v => {
+    ["dashboard", "studio", "audience", "movies", "statistics"].forEach(v => {
         const el = document.getElementById(v + "View");
         if (el) el.classList.toggle("hidden", v !== view);
     });
-    const titles = { dashboard:"Admin Dashboard", studio:"Movie Analyzer Studio", movies:"Movies Database", statistics:"Statistics & Analytics", audience:"Audience Analysis" };
+    const titles = { dashboard: "Admin Dashboard", studio: "Movie Analyzer Studio", movies: "Movies Database", statistics: "Statistics & Analytics", audience: "Audience Analysis" };
     const pt = document.querySelector(".page-title");
     if (pt) pt.textContent = titles[view] || "Admin Dashboard";
-    if (view === "audience" && genre) await loadGenreAudience(genre);
-    else if (view === "movies")       await loadMoviesPage();
-    else if (view === "statistics")   await loadStatisticsPage();
-    else if (view === "studio")       lucide.createIcons();
+    if (view === "audience") {
+        const select = document.getElementById("audienceGenreSelect");
+        if (!genre && select && select.value) genre = select.value;
+        if (genre) await loadGenreAudience(genre);
+    }
+    else if (view === "movies") await loadMoviesPage();
+    else if (view === "statistics") await loadStatisticsPage();
+    else if (view === "studio") lucide.createIcons();
+}
+
+let audienceAgeChart, audienceGenderChart, audienceOccChart;
+
+async function initAudiencePage() {
+    const tabsContainer = document.getElementById("audienceGenreTabs");
+    if (!tabsContainer) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=genre_stats`);
+        const json = await res.json();
+        const stats = json.data;
+        if (stats && stats.length > 0) {
+            const sorted = [...stats].sort((a, b) => b.count - a.count);
+            const totalCount = stats.reduce((acc, s) => acc + s.count, 0);
+
+            tabsContainer.innerHTML = `<button class="audience-genre-pill active" data-genre="All">All <span class="genre-count">${totalCount}</span></button>` +
+                sorted.map(s => `<button class="audience-genre-pill" data-genre="${s.genre}">${s.genre} <span class="genre-count">${s.count}</span></button>`).join('');
+
+            tabsContainer.querySelectorAll(".audience-genre-pill").forEach(pill => {
+                pill.addEventListener("click", () => {
+                    tabsContainer.querySelectorAll(".audience-genre-pill").forEach(p => p.classList.remove("active"));
+                    pill.classList.add("active");
+                    loadGenreAudience(pill.dataset.genre);
+                });
+            });
+
+            // Initial load
+            await loadGenreAudience("All");
+        }
+    } catch (e) { console.error("Failed to load genres for audience pills:", e); }
 }
 
 async function loadGenreAudience(genre) {
-    const title = document.getElementById("audienceGenreTitle");
-    if (title) title.textContent = genre;
-    const grid = document.querySelector(".audience-grid");
-    if (grid) { grid.style.opacity = "0"; setTimeout(() => grid.style.opacity = "1", 200); }
+    const genreKey = genre === "All" ? "" : genre;
+    const insight = document.getElementById("genreInsight");
+    if (insight) insight.textContent = `Analyzing audience for ${genre}...`;
 
+    // 1. Load Profile
     try {
-        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=genre_stats`);
-        const allStats = await res.json();
-        const stats = allStats.data.find(s => s.genre === genre);
-        if (stats) {
-            document.getElementById("genreAvgRoi").textContent    = stats.avg_roi + "x";
-            document.getElementById("genreAvgBudget").textContent = "$" + stats.avg_budget + "M";
-            const totalCount = allStats.data.reduce((acc, s) => acc + s.count, 0);
-            const share = Math.round((stats.count / totalCount) * 100);
-            document.getElementById("genreMarketShare").textContent = share + "%";
-            const insight = document.getElementById("genreInsight");
-            if (insight) insight.textContent = `${genre} films generate an average of $${stats.avg_revenue}M in revenue with a ${stats.avg_roi}x ROI. This genre has ${stats.count} films in our database, representing ${share}% market share.`;
-        }
-    } catch (e) { console.error("Genre stats load failed:", e); }
+        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=audience_profile&genre=${encodeURIComponent(genreKey)}`);
+        const json = await res.json();
+        if (json.status === 'ok') renderAudienceCharts(json.data);
+    } catch (e) { console.error("Audience profile fetch failed:", e); }
 
+    // 2. Load Top Movies
     try {
-        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=top_movies&genre=${encodeURIComponent(genre)}&limit=10`);
+        const res = await fetch(`${API_BASE}/admin/dashboard/api/?endpoint=top_movies&genre=${encodeURIComponent(genreKey)}&limit=10`);
         const json = await res.json();
         renderVanguardTable(json.data);
-    } catch (e) { console.error("Genre movies load failed:", e); }
+    } catch (e) { console.error("Genre movies fetch failed:", e); }
+}
 
-    const bars = document.querySelectorAll(".demo-fill");
-    bars.forEach(b => b.style.width = "0%");
-    setTimeout(() => {
-        if (bars[0]) bars[0].style.width = (70 + Math.random() * 20) + "%";
-        if (bars[1]) bars[1].style.width = (80 + Math.random() * 15) + "%";
-        if (bars[2]) bars[2].style.width = (40 + Math.random() * 30) + "%";
-    }, 500);
+function renderAudienceCharts(data) {
+    chartDefaults();
+
+    // 1. Age & Gender (Grouped Horizontal Bar)
+    const ageCtx = document.getElementById("ageGenderChart").getContext("2d");
+    if (audienceAgeChart) audienceAgeChart.destroy();
+    audienceAgeChart = new Chart(ageCtx, {
+        type: 'bar',
+        data: {
+            labels: data.age.map(d => d.label),
+            datasets: [
+                { label: 'Female', data: data.age.map(d => d.female), backgroundColor: '#FF4B91', borderRadius: 2, barThickness: 8 },
+                { label: 'Male', data: data.age.map(d => d.male), backgroundColor: '#4A90E2', borderRadius: 2, barThickness: 8 }
+            ]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: '#9ca3af', padding: 20 } }
+            },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#6b7280', font: { size: 10 } } },
+                y: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 11 } } }
+            }
+        }
+    });
+
+    // 2. Gender Ratio (Donut)
+    const genCtx = document.getElementById("genderDonutChart").getContext("2d");
+    if (audienceGenderChart) audienceGenderChart.destroy();
+    audienceGenderChart = new Chart(genCtx, {
+        type: 'doughnut',
+        data: {
+            labels: data.gender.map(d => d.label),
+            datasets: [{
+                data: data.gender.map(d => d.count),
+                backgroundColor: ['#4A90E2', '#FF4B91'], // Male = Blue, Female = Pink
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '80%',
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: '#9ca3af', padding: 20 } }
+            }
+        }
+    });
+
+    // 3. Top Occupations (Horizontal Bar)
+    const occCtx = document.getElementById("occupationsChart").getContext("2d");
+    if (audienceOccChart) audienceOccChart.destroy();
+    audienceOccChart = new Chart(occCtx, {
+        type: 'bar',
+        data: {
+            labels: data.occupation.map(d => d.label),
+            datasets: [{
+                data: data.occupation.map(d => d.count),
+                backgroundColor: '#FF3B30',
+                borderRadius: 2,
+                barThickness: 12
+            }]
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: '#6b7280', font: { size: 10 } } },
+                y: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 11 } } }
+            }
+        }
+    });
+
+    const insight = document.getElementById("genreInsight");
+    if (insight) insight.textContent = `Targeting a total of ${data.total_users.toLocaleString()} users across this segment.`;
 }
 
 function renderVanguardTable(movies) {
@@ -482,9 +600,11 @@ function renderVanguardTable(movies) {
     if (!tbody) return;
     tbody.innerHTML = movies.map((m, i) => `
         <tr class="clickable-row" data-index="${i}">
-            <td>${m.title}</td><td>${m.year||""}</td>
-            <td class="up">${m.roi}x</td><td>$${m.revenue_m}M</td>
-            <td>⭐ ${m.vote_average}</td>
+            <td class="movie-title-cell">${m.title}</td>
+            <td style="color:#6b7280;">${m.year || ""}</td>
+            <td class="up">${m.roi}x</td>
+            <td style="color:#9ca3af;">$${m.revenue_m}M</td>
+            <td class="${m.vote_average >= 7 ? 'up' : ''}">⭐ ${m.vote_average}</td>
         </tr>`).join("");
     tbody.querySelectorAll("tr.clickable-row").forEach(row => {
         row.style.cursor = "pointer";
@@ -504,15 +624,15 @@ function initSearch() {
         });
     }
     const map = {
-        "quickStatsBtn":    () => navigateTo("statistics"),
+        "quickStatsBtn": () => navigateTo("statistics"),
         "viewAllMoviesBtn": () => navigateTo("movies"),
-        "viewStatsBtn":     () => navigateTo("statistics"),
-        "viewStudioBtn":    () => navigateTo("studio"),
-        "analyzeGenreBtn":  async () => {
+        "viewStatsBtn": () => navigateTo("statistics"),
+        "viewStudioBtn": () => navigateTo("studio"),
+        "analyzeGenreBtn": async () => {
             try {
                 const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=genre_stats`);
                 const json = await res.json();
-                if (json.data?.length > 0) navigateTo("audience", [...json.data].sort((a,b) => b.avg_roi - a.avg_roi)[0].genre);
+                if (json.data?.length > 0) navigateTo("audience", [...json.data].sort((a, b) => b.avg_roi - a.avg_roi)[0].genre);
             } catch (e) { console.error(e); }
         }
     };
@@ -549,9 +669,9 @@ async function loadMoviesPage() {
     try {
         let url = `${API_BASE}/dashboard/movies/?page=${currentMoviesPage}`;
         if (currentMoviesSearch) url += `&search=${encodeURIComponent(currentMoviesSearch)}`;
-        if (currentMoviesGenre)  url += `&genre=${encodeURIComponent(currentMoviesGenre)}`;
+        if (currentMoviesGenre) url += `&genre=${encodeURIComponent(currentMoviesGenre)}`;
 
-        const res  = await fetch(url);
+        const res = await fetch(url);
         const data = await res.json();
 
         if (data.movies && data.movies.length > 0) {
@@ -607,8 +727,8 @@ async function loadMoviesPage() {
    STATISTICS PAGE
    ═══════════════════════════════════════════════════════════════ */
 let genreDistChart, genreRevenueChart;
-function initStatisticsPage() {}
-function initStudioPage() {}
+function initStatisticsPage() { }
+function initStudioPage() { }
 
 async function loadStatisticsPage() { await Promise.all([loadStatsKPIs(), loadStatsCharts()]); }
 
@@ -617,9 +737,9 @@ async function loadStatsKPIs() {
         const res = await fetch(`${API_BASE}/dashboard/api/?endpoint=kpis`);
         const json = await res.json(), d = json.data;
         document.getElementById("statsMovieCount").textContent = d.total_movies || 0;
-        document.getElementById("statsRevenue").textContent    = `$${d.total_revenue_b || 0}B`;
-        document.getElementById("statsROI").textContent        = `${d.avg_roi || 0}x`;
-        document.getElementById("statsRating").textContent     = (d.avg_rating || 0).toFixed(1);
+        document.getElementById("statsRevenue").textContent = `$${d.total_revenue_b || 0}B`;
+        document.getElementById("statsROI").textContent = `${d.avg_roi || 0}x`;
+        document.getElementById("statsRating").textContent = (d.avg_rating || 0).toFixed(1);
     } catch (e) { console.error("Stats KPIs load failed:", e); }
 }
 
@@ -633,37 +753,37 @@ async function loadStatsCharts() {
 
 function renderGenreDistChart(stats) {
     const ctx = document.getElementById("genreDistChart"); if (!ctx) return;
-    const sorted = [...stats].sort((a,b) => b.count - a.count).slice(0,10);
+    const sorted = [...stats].sort((a, b) => b.count - a.count).slice(0, 10);
     const labels = sorted.map(d => d.genre), colors = labels.map(g => colorFor(g).border);
     if (genreDistChart) genreDistChart.destroy();
-    genreDistChart = new Chart(ctx, { type:'doughnut', data:{ labels, datasets:[{ data:sorted.map(d=>d.count), backgroundColor:colors.map(c=>c+'b3'), borderColor:colors, borderWidth:2 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'right',labels:{boxWidth:12,padding:10}}, tooltip:{backgroundColor:'rgba(10,10,26,.94)',borderColor:'rgba(229,9,20,.4)',borderWidth:1,callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} movies`}} } } });
+    genreDistChart = new Chart(ctx, { type: 'doughnut', data: { labels, datasets: [{ data: sorted.map(d => d.count), backgroundColor: colors.map(c => c + 'b3'), borderColor: colors, borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, padding: 10 } }, tooltip: { backgroundColor: 'rgba(10,10,26,.94)', borderColor: 'rgba(229,9,20,.4)', borderWidth: 1, callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} movies` } } } } });
 }
 
 function renderGenreRevenueChart(stats) {
     const ctx = document.getElementById("genreRevenueChart"); if (!ctx) return;
-    const sorted = [...stats].sort((a,b) => b.avg_revenue - a.avg_revenue).slice(0,10);
+    const sorted = [...stats].sort((a, b) => b.avg_revenue - a.avg_revenue).slice(0, 10);
     const labels = sorted.map(d => d.genre), colors = labels.map(g => colorFor(g).border);
     if (genreRevenueChart) genreRevenueChart.destroy();
-    genreRevenueChart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Avg Revenue ($M)', data:sorted.map(d=>d.avg_revenue), backgroundColor:colors.map(c=>c+'b3'), borderColor:colors, borderWidth:1.5, borderRadius:6 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{backgroundColor:'rgba(10,10,26,.94)',borderColor:'rgba(229,9,20,.4)',borderWidth:1,callbacks:{label:ctx=>`Revenue: $${ctx.raw}M`}} }, scales:{ x:{grid:{display:false}}, y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{callback:v=>'$'+v+'M'},beginAtZero:true} } } });
+    genreRevenueChart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Avg Revenue ($M)', data: sorted.map(d => d.avg_revenue), backgroundColor: colors.map(c => c + 'b3'), borderColor: colors, borderWidth: 1.5, borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(10,10,26,.94)', borderColor: 'rgba(229,9,20,.4)', borderWidth: 1, callbacks: { label: ctx => `Revenue: $${ctx.raw}M` } } }, scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { callback: v => '$' + v + 'M' }, beginAtZero: true } } } });
 }
 
 function renderGenreStatsTable(stats) {
     const tbody = document.querySelector("#statsGenreTable tbody"); if (!tbody) return;
-    tbody.innerHTML = [...stats].sort((a,b) => b.avg_roi - a.avg_roi).map(s => `
-        <tr><td><strong>${s.genre}</strong></td><td>${s.count}</td><td>$${s.avg_budget}M</td><td>$${s.avg_revenue}M</td><td class="${s.avg_roi>=3?'up':''}">${s.avg_roi}x</td></tr>`).join('');
+    tbody.innerHTML = [...stats].sort((a, b) => b.avg_roi - a.avg_roi).map(s => `
+        <tr><td><strong>${s.genre}</strong></td><td>${s.count}</td><td>$${s.avg_budget}M</td><td>$${s.avg_revenue}M</td><td class="${s.avg_roi >= 3 ? 'up' : ''}">${s.avg_roi}x</td></tr>`).join('');
 }
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 function getCookie(name) {
-    const found = (document.cookie||'').split(';').map(c=>c.trim()).find(c=>c.startsWith(name+'='));
+    const found = (document.cookie || '').split(';').map(c => c.trim()).find(c => c.startsWith(name + '='));
     return found ? decodeURIComponent(found.split('=')[1]) : null;
 }
 
 const DEMO_GENRE_STATS = [
-    { genre:"Horror",    avg_budget:18,  avg_revenue:96,  avg_roi:5.3, count:150 },
-    { genre:"Animation", avg_budget:95,  avg_revenue:410, avg_roi:4.3, count:200 },
-    { genre:"Sci-Fi",    avg_budget:142, avg_revenue:485, avg_roi:3.4, count:180 },
-    { genre:"Comedy",    avg_budget:42,  avg_revenue:135, avg_roi:3.2, count:300 },
-    { genre:"Action",    avg_budget:165, avg_revenue:520, avg_roi:3.2, count:350 },
-    { genre:"Drama",     avg_budget:38,  avg_revenue:112, avg_roi:2.9, count:400 },
+    { genre: "Horror", avg_budget: 18, avg_revenue: 96, avg_roi: 5.3, count: 150 },
+    { genre: "Animation", avg_budget: 95, avg_revenue: 410, avg_roi: 4.3, count: 200 },
+    { genre: "Sci-Fi", avg_budget: 142, avg_revenue: 485, avg_roi: 3.4, count: 180 },
+    { genre: "Comedy", avg_budget: 42, avg_revenue: 135, avg_roi: 3.2, count: 300 },
+    { genre: "Action", avg_budget: 165, avg_revenue: 520, avg_roi: 3.2, count: 350 },
+    { genre: "Drama", avg_budget: 38, avg_revenue: 112, avg_roi: 2.9, count: 400 },
 ];

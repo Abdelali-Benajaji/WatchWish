@@ -31,7 +31,7 @@
                 <a href="{% url 'user_recommendations' %}"
                     class="nav-link {% if request.resolver_match.url_name == 'user_recommendations' %}active{% endif %}">For
                     You</a>
-                {% if user.role == 'admin' %}
+                {% if user.role == 'admin' or user.is_superuser %}
                 <a href="{% url 'admin_dashboard' %}"
                     class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" 
                     style="color: var(--primary-color);">Dashboard</a>
