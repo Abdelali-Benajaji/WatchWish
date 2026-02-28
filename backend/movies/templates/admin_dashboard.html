@@ -978,7 +978,6 @@
             gap: 14px;
         }
 
-        .card-simulator {}
 
         .card-desc {
             font-size: 0.79rem;
@@ -1135,18 +1134,131 @@
         }
 
         .sim-films-label {
-            font-size: 0.72rem;
-            font-weight: 600;
-            letter-spacing: 0.05em;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--text-muted);
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sim-films-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, rgba(229, 9, 20, 0.4), transparent);
         }
 
         .sim-films-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 15px;
+            perspective: 1000px;
+        }
+
+        .sim-film-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .sim-film-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(229, 9, 20, 0.4);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(229, 9, 20, 0.2);
+        }
+
+        .sim-film-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at top right, rgba(229, 9, 20, 0.1), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .sim-film-card:hover::before {
+            opacity: 1;
+        }
+
+        .sim-film-poster-wrap {
+            width: 100%;
+            aspect-ratio: 2/3;
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .sim-film-poster-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .sim-film-card:hover .sim-film-poster-wrap img {
+            transform: scale(1.1);
+        }
+
+        .sim-film-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .sim-film-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: 2.2rem;
+        }
+
+        .sim-film-meta {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sim-film-match {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #d1d5db;
+            background: rgba(229, 9, 20, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+            width: fit-content;
+            border: 1px solid rgba(229, 9, 20, 0.3);
         }
 
         /* ─── Modal ─── */

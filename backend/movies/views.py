@@ -546,18 +546,18 @@ def admin_dashboard_api(request):
                 avg_roi = sum(f['roi'] for f in similar_films if f['roi'] > 0) / max(1, len([f for f in similar_films if f['roi'] > 0]))
                 avg_similarity = sum(f['similarity'] for f in similar_films) / max(1, len(similar_films))
                 
-                # avg_similarity is already 0-100 (it's cosine * 100)
-                # avg_roi is the return multiple (typically 1–10+)
-                # We blend them: similarity is primary (50-80% weight), ROI provides a bonus
-                roi_score = min(30, avg_roi * 3)   # cap ROI bonus at 30 pts
-                viability = min(95, int(avg_similarity * 0.7 + roi_score))
-                # Ensure a minimum baseline so completely different-genre films still show Medium
-                if viability < 30 and avg_similarity > 5:
-                    viability = 30 + int(avg_similarity)
+                # Use the provided formula for confidence/viability
+                # similarities[top_indices[0]] * 100 is similar_films[0]['similarity']
+                top_similarity = similar_films[0]['similarity'] if similar_films else 0
+                viability = int(min(95, max(30, top_similarity + 30)))
+                
+                # Restore missing estimation variables
                 est_revenue_m = int(avg_revenue * 1.2)
                 est_roi = round(avg_roi * 0.9, 1)
-                risk = "Low" if viability > 70 else "Medium" if viability > 45 else "High"
-                audience_match = min(95, int(avg_similarity))
+
+                # Update risk level based on the new viability scale
+                risk = "Low" if viability > 75 else "Medium" if viability > 50 else "High"
+                audience_match = min(95, int(top_similarity))
                 
                 genre_counts = {}
                 for film in similar_films_ml:

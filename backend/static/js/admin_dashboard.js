@@ -344,26 +344,33 @@ function populateSimResult(d) {
 
     const simFilmsWrap = document.getElementById("simFilms");
     if (simFilmsWrap && d.similar_films && d.similar_films.length) {
-        /* ✅ FIX: poster wrapped in a sized div so img can't break layout */
         simFilmsWrap.innerHTML = d.similar_films.map((f, i) => {
-            const revFormat = (f.revenue != null) ? formatMoney(f.revenue, f.revenue_m) : (f.revenue_m ? `$${f.revenue_m}M` : "");
+            const genres = (f.genres || '').split("|").slice(0, 2).join(" · ");
+            const posterHTML = f.poster
+                ? `<img src="${f.poster}" alt="${f.title}" loading="lazy" onerror="this.style.display='none'">`
+                : '';
+
             return `
-          <div class="sim-film-card" data-index="${i}">
-            <div style="width:36px;height:52px;flex-shrink:0;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.06);">
-              ${f.poster ? `<img src="${f.poster}" alt="${f.title}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'">` : ''}
-            </div>
-            <div class="sim-film-info">
-              <span class="sim-film-title">${f.title}${f.year ? ` (${f.year})` : ""}</span>
-              <span class="sim-film-meta">${(f.genres || '').split("|").slice(0, 2).join(" · ")}</span>
-              <span class="sim-film-revenue">${revFormat ? `${revFormat} · ` : ""}${f.similarity}% match</span>
-            </div>
-          </div>`
+            <div class="sim-film-card" data-index="${i}">
+                <div class="sim-film-poster-wrap">
+                    ${posterHTML}
+                </div>
+                <div class="sim-film-info">
+                    <span class="sim-film-title">${f.title}${f.year ? ` (${f.year})` : ""}</span>
+                    <span class="sim-film-meta">${genres}</span>
+                    <div class="sim-film-match">
+                        <i data-lucide="crosshair" style="width:10px;height:10px;"></i>
+                        <span>${f.similarity}% Match</span>
+                    </div>
+                </div>
+            </div>`;
         }).join("");
 
         simFilmsWrap.querySelectorAll(".sim-film-card").forEach(card => {
             card.addEventListener("click", () => showMovieModal(d.similar_films[card.dataset.index]));
         });
         simFilmsWrap.parentElement.classList.remove("hidden");
+        lucide.createIcons();
     }
 }
 
